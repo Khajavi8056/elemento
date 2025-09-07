@@ -46,7 +46,7 @@ input bool InpDebugMode = true; // حالت دیباگ (فعال برای لاگ
 
 // تنظیمات فیلتر روند ایچیموکو (جدید)
 input group "فیلتر روند ایچیموکو"
-input bool Inp_IchimokuFilter_Enabled = false; // فعال کردن فیلتر روند ایچیموکو
+input bool Inp_IchimokuFilter_Enabled = true; // فعال کردن فیلتر روند ایچیموکو
 input int Inp_Ichimoku_Tenkan = 9; // دوره تنکان-سن
 input int Inp_Ichimoku_Kijun = 26; // دوره کیجون-سن
 input int Inp_Ichimoku_SenkouB = 52; // دوره سنکو اسپن B
@@ -64,7 +64,7 @@ input int Inp_Visual_Y_Offset = 10; // فاصله عمودی از لبه چار�
 
 // تنظیمات رنج ۱
 input group "تنظیمات رنج 1"
-input bool InpRange1_Enabled = true; // فعال کردن رنج 1
+input bool InpRange1_Enabled = false; // فعال کردن رنج 1
 input ENUM_TIMEFRAMES InpRange1_Execution_Timeframe = PERIOD_M5; // تایم‌فریم اجرا رنج 1
 input ENUM_TIMEFRAMES InpRange1_TrendFilter_Timeframe = PERIOD_H1; // تایم‌فریم فیلتر روند رنج 1 (جدید)
 input int InpRange1_Start_Hour = 22; // ساعت شروع رنج 1 (0-23)
@@ -74,22 +74,22 @@ input int InpRange1_End_Minute = 30; // دقیقه پایان رنج 1 (0-59)
 input int InpRange1_MinRangePoints = 200; // حداقل ارتفاع رنج 1 به پوینت
 input int InpRange1_MaxRangePoints = 1500; // حداکثر ارتفاع رنج 1 به پوینت
 input ENUM_PLACEMENT_MODE InpRange1_Placement_Mode = PLACEMENT_ATR; // حالت ثبت سفارش رنج 1
-input int InpRange1_ATR_Period = 14; // دوره ATR برای ثبت سفارش رنج 1
-input double InpRange1_ATR_Multiplier = 1.2; // ضریب ATR برای ثبت سفارش رنج 1
+input int InpRange1_ATR_Period = 122; // دوره ATR برای ثبت سفارش رنج 1
+input double InpRange1_ATR_Multiplier = 2.3; // ضریب ATR برای ثبت سفارش رنج 1
 input ENUM_SL_MODE InpRange1_SL_Mode = SL_ATR; // حالت استاپ لاس رنج 1
-input int InpRange1_SL_ATR_Period = 14; // دوره ATR برای استاپ لاس رنج 1
-input double InpRange1_SL_ATR_Multiplier = 1.5; // ضریب ATR برای استاپ لاس رنج 1
+input int InpRange1_SL_ATR_Period = 62; // دوره ATR برای استاپ لاس رنج 1
+input double InpRange1_SL_ATR_Multiplier = 1.3; // ضریب ATR برای استاپ لاس رنج 1
 input ENUM_TRAILING_MODE InpRange1_Trailing_Mode = TRAILING_ATR; // حالت تریلینگ استاپ رنج 1
-input int InpRange1_Trailing_ATR_Period = 14; // دوره ATR برای تریلینگ رنج 1
-input double InpRange1_Trailing_ATR_Multiplier = 1.0; // ضریب ATR برای تریلینگ رنج 1
+input int InpRange1_Trailing_ATR_Period = 43; // دوره ATR برای تریلینگ رنج 1
+input double InpRange1_Trailing_ATR_Multiplier = 1.4; // ضریب ATR برای تریلینگ رنج 1
 input double InpRange1_RR_Ratio = 1.5; // نسبت R:R برای خروج پله‌ای رنج 1
-input double InpRange1_PartialClosePercent = 50.0; // درصد بستن پله‌ای رنج 1
+input double InpRange1_PartialClosePercent = 60.0; // درصد بستن پله‌ای رنج 1
 input int InpRange1_Cleanup_Hours = 5; // ساعت‌های پاکسازی رنج 1 (0-24)
 input color InpRange1_Color = clrBlue; // رنگ مستطیل رنج 1
 
 // تنظیمات رنج ۲
 input group "تنظیمات رنج 2"
-input bool InpRange2_Enabled = false; // فعال کردن رنج 2
+input bool InpRange2_Enabled = true; // فعال کردن رنج 2
 input ENUM_TIMEFRAMES InpRange2_Execution_Timeframe = PERIOD_M15; // تایم‌فریم اجرا رنج 2
 input ENUM_TIMEFRAMES InpRange2_TrendFilter_Timeframe = PERIOD_M15; // تایم‌فریم فیلتر روند رنج 2 (جدید)
 input int InpRange2_Start_Hour = 5; // ساعت شروع رنج 2 (0-23)
