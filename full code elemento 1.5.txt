@@ -1,4 +1,4 @@
-﻿```mqh
+```mqh
 
 //+------------------------------------------------------------------+
 //|                            Settings.mqh                          |
@@ -46,11 +46,11 @@ input bool InpDebugMode = true; // حالت دیباگ (فعال برای لاگ
 
 // تنظیمات فیلتر روند ایچیموکو (جدید)
 input group "فیلتر روند ایچیموکو"
-input bool Inp_IchimokuFilter_Enabled = true; // فعال کردن فیلتر روند ایچیموکو
+input bool Inp_IchimokuFilter_Enabled = false; // فعال کردن فیلتر روند ایچیموکو
 input int Inp_Ichimoku_Tenkan = 9; // دوره تنکان-سن
 input int Inp_Ichimoku_Kijun = 26; // دوره کیجون-سن
 input int Inp_Ichimoku_SenkouB = 52; // دوره سنکو اسپن B
-input int Inp_Ichimoku_FlatThreshold_Points = 10; // آستانه تشخیص ابر فلت به پوینت
+input int Inp_Ichimoku_FlatThreshold_Points = 90; // آستانه تشخیص ابر فلت به پوینت
 
 // تنظیمات نمایشگر چارت (جدید)
 input group "تنظیمات نمایشگر چارت"
@@ -65,14 +65,14 @@ input int Inp_Visual_Y_Offset = 10; // فاصله عمودی از لبه چار�
 // تنظیمات رنج ۱
 input group "تنظیمات رنج 1"
 input bool InpRange1_Enabled = true; // فعال کردن رنج 1
-input ENUM_TIMEFRAMES InpRange1_Execution_Timeframe = PERIOD_H1; // تایم‌فریم اجرا رنج 1
-input ENUM_TIMEFRAMES InpRange1_TrendFilter_Timeframe = PERIOD_H4; // تایم‌فریم فیلتر روند رنج 1 (جدید)
-input int InpRange1_Start_Hour = 23; // ساعت شروع رنج 1 (0-23)
+input ENUM_TIMEFRAMES InpRange1_Execution_Timeframe = PERIOD_M5; // تایم‌فریم اجرا رنج 1
+input ENUM_TIMEFRAMES InpRange1_TrendFilter_Timeframe = PERIOD_H1; // تایم‌فریم فیلتر روند رنج 1 (جدید)
+input int InpRange1_Start_Hour = 22; // ساعت شروع رنج 1 (0-23)
 input int InpRange1_Start_Minute = 0; // دقیقه شروع رنج 1 (0-59)
-input int InpRange1_End_Hour = 4; // ساعت پایان رنج 1 (0-23)
-input int InpRange1_End_Minute = 0; // دقیقه پایان رنج 1 (0-59)
-input int InpRange1_MinRangePoints = 50; // حداقل ارتفاع رنج 1 به پوینت
-input int InpRange1_MaxRangePoints = 500; // حداکثر ارتفاع رنج 1 به پوینت
+input int InpRange1_End_Hour = 9; // ساعت پایان رنج 1 (0-23)
+input int InpRange1_End_Minute = 30; // دقیقه پایان رنج 1 (0-59)
+input int InpRange1_MinRangePoints = 200; // حداقل ارتفاع رنج 1 به پوینت
+input int InpRange1_MaxRangePoints = 1500; // حداکثر ارتفاع رنج 1 به پوینت
 input ENUM_PLACEMENT_MODE InpRange1_Placement_Mode = PLACEMENT_ATR; // حالت ثبت سفارش رنج 1
 input int InpRange1_ATR_Period = 14; // دوره ATR برای ثبت سفارش رنج 1
 input double InpRange1_ATR_Multiplier = 1.2; // ضریب ATR برای ثبت سفارش رنج 1
@@ -89,15 +89,15 @@ input color InpRange1_Color = clrBlue; // رنگ مستطیل رنج 1
 
 // تنظیمات رنج ۲
 input group "تنظیمات رنج 2"
-input bool InpRange2_Enabled = true; // فعال کردن رنج 2
-input ENUM_TIMEFRAMES InpRange2_Execution_Timeframe = PERIOD_H1; // تایم‌فریم اجرا رنج 2
-input ENUM_TIMEFRAMES InpRange2_TrendFilter_Timeframe = PERIOD_H4; // تایم‌فریم فیلتر روند رنج 2 (جدید)
-input int InpRange2_Start_Hour = 23; // ساعت شروع رنج 2 (0-23)
+input bool InpRange2_Enabled = false; // فعال کردن رنج 2
+input ENUM_TIMEFRAMES InpRange2_Execution_Timeframe = PERIOD_M15; // تایم‌فریم اجرا رنج 2
+input ENUM_TIMEFRAMES InpRange2_TrendFilter_Timeframe = PERIOD_M15; // تایم‌فریم فیلتر روند رنج 2 (جدید)
+input int InpRange2_Start_Hour = 5; // ساعت شروع رنج 2 (0-23)
 input int InpRange2_Start_Minute = 0; // دقیقه شروع رنج 2 (0-59)
-input int InpRange2_End_Hour = 4; // ساعت پایان رنج 2 (0-23)
+input int InpRange2_End_Hour = 13; // ساعت پایان رنج 2 (0-23)
 input int InpRange2_End_Minute = 0; // دقیقه پایان رنج 2 (0-59)
-input int InpRange2_MinRangePoints = 50; // حداقل ارتفاع رنج 2 به پوینت
-input int InpRange2_MaxRangePoints = 500; // حداکثر ارتفاع رنج 2 به پوینت
+input int InpRange2_MinRangePoints = 200; // حداقل ارتفاع رنج 2 به پوینت
+input int InpRange2_MaxRangePoints = 3500; // حداکثر ارتفاع رنج 2 به پوینت
 input ENUM_PLACEMENT_MODE InpRange2_Placement_Mode = PLACEMENT_ATR; // حالت ثبت سفارش رنج 2
 input int InpRange2_ATR_Period = 14; // دوره ATR برای ثبت سفارش رنج 2
 input double InpRange2_ATR_Multiplier = 1.2; // ضریب ATR برای ثبت سفارش رنج 2
@@ -109,20 +109,20 @@ input int InpRange2_Trailing_ATR_Period = 14; // دوره ATR برای تریل�
 input double InpRange2_Trailing_ATR_Multiplier = 1.0; // ضریب ATR برای تریلینگ رنج 2
 input double InpRange2_RR_Ratio = 1.5; // نسبت R:R برای خروج پله‌ای رنج 2
 input double InpRange2_PartialClosePercent = 50.0; // درصد بستن پله‌ای رنج 2
-input int InpRange2_Cleanup_Hours = 5; // ساعت‌های پاکسازی رنج 2 (0-24)
+input int InpRange2_Cleanup_Hours = 4; // ساعت‌های پاکسازی رنج 2 (0-24)
 input color InpRange2_Color = clrRed; // رنگ مستطیل رنج 2
 
 // تنظیمات رنج ۳
 input group "تنظیمات رنج 3"
-input bool InpRange3_Enabled = true; // فعال کردن رنج 3
-input ENUM_TIMEFRAMES InpRange3_Execution_Timeframe = PERIOD_H1; // تایم‌فریم اجرا رنج 3
-input ENUM_TIMEFRAMES InpRange3_TrendFilter_Timeframe = PERIOD_H4; // تایم‌فریم فیلتر روند رنج 3 (جدید)
-input int InpRange3_Start_Hour = 23; // ساعت شروع رنج 3 (0-23)
+input bool InpRange3_Enabled = false; // فعال کردن رنج 3
+input ENUM_TIMEFRAMES InpRange3_Execution_Timeframe = PERIOD_M5; // تایم‌فریم اجرا رنج 3
+input ENUM_TIMEFRAMES InpRange3_TrendFilter_Timeframe = PERIOD_M30; // تایم‌فریم فیلتر روند رنج 3 (جدید)
+input int InpRange3_Start_Hour = 15; // ساعت شروع رنج 3 (0-23)
 input int InpRange3_Start_Minute = 0; // دقیقه شروع رنج 3 (0-59)
-input int InpRange3_End_Hour = 4; // ساعت پایان رنج 3 (0-23)
+input int InpRange3_End_Hour = 18; // ساعت پایان رنج 3 (0-23)
 input int InpRange3_End_Minute = 0; // دقیقه پایان رنج 3 (0-59)
-input int InpRange3_MinRangePoints = 50; // حداقل ارتفاع رنج 3 به پوینت
-input int InpRange3_MaxRangePoints = 500; // حداکثر ارتفاع رنج 3 به پوینت
+input int InpRange3_MinRangePoints = 100; // حداقل ارتفاع رنج 3 به پوینت
+input int InpRange3_MaxRangePoints = 2110; // حداکثر ارتفاع رنج 3 به پوینت
 input ENUM_PLACEMENT_MODE InpRange3_Placement_Mode = PLACEMENT_ATR; // حالت ثبت سفارش رنج 3
 input int InpRange3_ATR_Period = 14; // دوره ATR برای ثبت سفارش رنج 3
 input double InpRange3_ATR_Multiplier = 1.2; // ضریب ATR برای ثبت سفارش رنج 3
@@ -138,13 +138,13 @@ input int InpRange3_Cleanup_Hours = 5; // ساعت‌های پاکسازی رن�
 input color InpRange3_Color = clrGreen; // رنگ مستطیل رنج 3
 
 // تنظیمات رنج ۴
-input group "تنظیمات رنج 4"
-input bool InpRange4_Enabled = true; // فعال کردن رنج 4
-input ENUM_TIMEFRAMES InpRange4_Execution_Timeframe = PERIOD_H1; // تایم‌فریم اجرا رنج 4
-input ENUM_TIMEFRAMES InpRange4_TrendFilter_Timeframe = PERIOD_H4; // تایم‌فریم فیلتر روند رنج 4 (جدید)
-input int InpRange4_Start_Hour = 23; // ساعت شروع رنج 4 (0-23)
+input group "غیر فعال تنظیمات رنج 4"
+input bool InpRange4_Enabled = false; // فعال کردن رنج 4
+input ENUM_TIMEFRAMES InpRange4_Execution_Timeframe = PERIOD_CURRENT; // تایم‌فریم اجرا رنج 4
+input ENUM_TIMEFRAMES InpRange4_TrendFilter_Timeframe = PERIOD_CURRENT; // تایم‌فریم فیلتر روند رنج 4 (جدید)
+input int InpRange4_Start_Hour = 0; // ساعت شروع رنج 4 (0-23)
 input int InpRange4_Start_Minute = 0; // دقیقه شروع رنج 4 (0-59)
-input int InpRange4_End_Hour = 4; // ساعت پایان رنج 4 (0-23)
+input int InpRange4_End_Hour = 0; // ساعت پایان رنج 4 (0-23)
 input int InpRange4_End_Minute = 0; // دقیقه پایان رنج 4 (0-59)
 input int InpRange4_MinRangePoints = 50; // حداقل ارتفاع رنج 4 به پوینت
 input int InpRange4_MaxRangePoints = 500; // حداکثر ارتفاع رنج 4 به پوینت
