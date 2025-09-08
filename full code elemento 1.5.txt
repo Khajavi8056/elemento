@@ -64,7 +64,7 @@ input int Inp_Visual_Y_Offset = 10; // فاصله عمودی از لبه چار�
 
 // تنظیمات رنج ۱
 input group "تنظیمات رنج 1"
-input bool InpRange1_Enabled = false; // فعال کردن رنج 1
+input bool InpRange1_Enabled = true; // فعال کردن رنج 1
 input ENUM_TIMEFRAMES InpRange1_Execution_Timeframe = PERIOD_M5; // تایم‌فریم اجرا رنج 1
 input ENUM_TIMEFRAMES InpRange1_TrendFilter_Timeframe = PERIOD_H1; // تایم‌فریم فیلتر روند رنج 1 (جدید)
 input int InpRange1_Start_Hour = 22; // ساعت شروع رنج 1 (0-23)
@@ -99,16 +99,16 @@ input int InpRange2_End_Minute = 0; // دقیقه پایان رنج 2 (0-59)
 input int InpRange2_MinRangePoints = 200; // حداقل ارتفاع رنج 2 به پوینت
 input int InpRange2_MaxRangePoints = 3500; // حداکثر ارتفاع رنج 2 به پوینت
 input ENUM_PLACEMENT_MODE InpRange2_Placement_Mode = PLACEMENT_ATR; // حالت ثبت سفارش رنج 2
-input int InpRange2_ATR_Period = 14; // دوره ATR برای ثبت سفارش رنج 2
-input double InpRange2_ATR_Multiplier = 1.2; // ضریب ATR برای ثبت سفارش رنج 2
+input int InpRange2_ATR_Period = 27; // دوره ATR برای ثبت سفارش رنج 2
+input double InpRange2_ATR_Multiplier = 2.8; // ضریب ATR برای ثبت سفارش رنج 2
 input ENUM_SL_MODE InpRange2_SL_Mode = SL_ATR; // حالت استاپ لاس رنج 2
-input int InpRange2_SL_ATR_Period = 14; // دوره ATR برای استاپ لاس رنج 2
-input double InpRange2_SL_ATR_Multiplier = 1.5; // ضریب ATR برای استاپ لاس رنج 2
+input int InpRange2_SL_ATR_Period = 86; // دوره ATR برای استاپ لاس رنج 2
+input double InpRange2_SL_ATR_Multiplier = 1.56; // ضریب ATR برای استاپ لاس رنج 2
 input ENUM_TRAILING_MODE InpRange2_Trailing_Mode = TRAILING_ATR; // حالت تریلینگ استاپ رنج 2
-input int InpRange2_Trailing_ATR_Period = 14; // دوره ATR برای تریلینگ رنج 2
-input double InpRange2_Trailing_ATR_Multiplier = 1.0; // ضریب ATR برای تریلینگ رنج 2
-input double InpRange2_RR_Ratio = 1.5; // نسبت R:R برای خروج پله‌ای رنج 2
-input double InpRange2_PartialClosePercent = 50.0; // درصد بستن پله‌ای رنج 2
+input int InpRange2_Trailing_ATR_Period = 101; // دوره ATR برای تریلینگ رنج 2
+input double InpRange2_Trailing_ATR_Multiplier = 1.58; // ضریب ATR برای تریلینگ رنج 2
+input double InpRange2_RR_Ratio = 2.8; // نسبت R:R برای خروج پله‌ای رنج 2
+input double InpRange2_PartialClosePercent = 26; // درصد بستن پله‌ای رنج 2
 input int InpRange2_Cleanup_Hours = 4; // ساعت‌های پاکسازی رنج 2 (0-24)
 input color InpRange2_Color = clrRed; // رنگ مستطیل رنج 2
 
