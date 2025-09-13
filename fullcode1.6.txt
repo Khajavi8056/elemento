@@ -1,3 +1,5 @@
+
+
 ```mql5
 //+------------------------------------------------------------------+
 //|                                                         Settings.mqh |
@@ -173,7 +175,7 @@ input color InpRange4_Color = clrYellow; // رنگ مستطیل رنج 4
 
 #property copyright "Copyright 2025, Hipoalgorithm Team"
 #property link      "https://hipoalgorithm.com"
-#property version   "1.70"
+#property version   "1.80" // ورژن آپدیت شده برای اعمال تغییرات جدید (اصلاح کش ATR، نمایشگر روند، مقاوم‌سازی Risk Manager)
 #property strict
 
 #include "Settings.mqh"
@@ -210,7 +212,7 @@ CVisualManager g_visualManager;
 int OnInit()
 {
    g_isTester = MQLInfoInteger(MQL_TESTER); // تشخیص حالت تستر برای تنظیم رفتار خاص
-   if(InpDebugMode) Print("شروع مقداردهی اکسپرت Elemento نسخه 1.7...");
+   if(InpDebugMode) Print("شروع مقداردهی اکسپرت Elemento نسخه 1.80...");
 
    // کش اطلاعات سیمبل (نماد) برای استفاده در محاسبه ریسک، حجم و فاصله‌ها
    g_tickValue = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);
@@ -219,10 +221,10 @@ int OnInit()
    g_volumeMin = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
    g_volumeMax = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MAX);
 
-   // چک ولید بودن اطلاعات نماد (اگر صفر باشد، اکسپرت نمی‌تواند ریسک را محاسبه کند)
-   if(g_tickValue == 0 || g_tickSize == 0 || g_volumeStep == 0)
+   // چک ولید بودن اطلاعات نماد (اگر صفر یا نامعتبر باشد، اکسپرت متوقف می‌شود برای جلوگیری از محاسبات اشتباه)
+   if(g_tickValue <= 0 || g_tickSize <= 0 || g_volumeStep <= 0)
    {
-      Print("خطا: اطلاعات نماد نامعتبر (tickValue/tickSize/volumeStep).");
+      Print("خطای مرگبار: اطلاعات نماد نامعتبر است (tickValue/tickSize/volumeStep). اکسپرت متوقف می‌شود.");
       return(INIT_FAILED);
    }
 
@@ -320,14 +322,14 @@ int OnInit()
    // راه‌اندازی تایمر برای مدیریت معاملات هر ۶۰ ثانیه (بهینه‌سازی عملکرد OnTick)
    EventSetTimer(60);
 
-   Print("مقداردهی اکسپرت Elemento نسخه 1.7 با موفقیت انجام شد.");
+   Print("مقداردهی اکسپرت Elemento نسخه 1.80 با موفقیت انجام شد.");
    return(INIT_SUCCEEDED);
 }
 
 // تابع پایان اکسپرت (OnDeinit): پاکسازی منابع و پاکسازی سخت تمام رنج‌ها
 void OnDeinit(const int reason)
 {
-   if(InpDebugMode) Print("دفع مقداردهی اکسپرت Elemento نسخه 1.7. دلیل: ", reason);
+   if(InpDebugMode) Print("دفع مقداردهی اکسپرت Elemento نسخه 1.80. دلیل: ", reason);
 
    // پاکسازی سخت تمام رنج‌ها برای بستن معاملات باقی‌مانده و ریست (در صورت کرش یا خروج)
    for(int i = 0; i < 4; i++)
@@ -424,19 +426,38 @@ void OnTick()
       }
    }
 
-   // اگر رنج 1 فعال است و کندل جدید تشخیص داده شده، وضعیت روند را به‌روزرسانی کن
-   if(InpRange1_Enabled && newBarDetected)
+   // اگر کندل جدید تشخیص داده شده، وضعیت روند را به‌روزرسانی کن (از اولین رنج فعال استفاده شود)
+   if(newBarDetected)
    {
-      ENUM_TREND_DIRECTION globalTrend = g_trendFilter.GetTrendDirection(g_ranges[0].GetTrendFilterTimeframe());
-      string trendText;
-      color trendColor;
-      switch(globalTrend)
+      ENUM_TIMEFRAMES trendDisplayTimeframe = PERIOD_CURRENT;
+      bool anyRangeActive = false;
+
+      // پیدا کردن اولین رنج فعال برای نمایش روند
+      for(int i = 0; i < 4; i++)
       {
-         case TREND_BUY: trendText = "TREND BUY"; trendColor = Inp_Visual_FontColor_Buy; break;
-         case TREND_SELL: trendText = "TREND SELL"; trendColor = Inp_Visual_FontColor_Sell; break;
-         default: trendText = "TREND NEUTRAL"; trendColor = Inp_Visual_FontColor_Neutral; break;
+         bool enabled = i == 0 ? InpRange1_Enabled : i == 1 ? InpRange2_Enabled : i == 2 ? InpRange3_Enabled : InpRange4_Enabled;
+         if(enabled)
+         {
+            trendDisplayTimeframe = g_ranges[i].GetTrendFilterTimeframe();
+            anyRangeActive = true;
+            break; // پیدا شد، از حلقه خارج شو
+         }
       }
-      g_visualManager.UpdateTrendStatus(trendText, trendColor); // به‌روزرسانی نمایش بصری روند
+
+      // اگر حداقل یک رنج فعال بود، نمایشگر رو آپدیت کن
+      if(anyRangeActive)
+      {
+         ENUM_TREND_DIRECTION globalTrend = g_trendFilter.GetTrendDirection(trendDisplayTimeframe);
+         string trendText;
+         color trendColor;
+         switch(globalTrend)
+         {
+            case TREND_BUY: trendText = "TREND BUY"; trendColor = Inp_Visual_FontColor_Buy; break;
+            case TREND_SELL: trendText = "TREND SELL"; trendColor = Inp_Visual_FontColor_Sell; break;
+            default: trendText = "TREND NEUTRAL"; trendColor = Inp_Visual_FontColor_Neutral; break;
+         }
+         g_visualManager.UpdateTrendStatus(trendText, trendColor); // به‌روزرسانی نمایش بصری روند
+      }
    }
 }
 
@@ -519,7 +540,7 @@ bool IsMarketClosed()
 //+------------------------------------------------------------------+
 // این فایل کلاس CRange را تعریف می‌کند که هسته استراتژی شکست رنج را مدیریت می‌کند.
 // استراتژی کلی اکسپرت: هر رنج زمانی (مانند سشن آسیا) را شناسایی می‌کند، سقف و کف آن را تعیین می‌کند، اگر ارتفاع معتبر باشد، با افست (بر اساس ATR یا درصد) مسلح می‌شود، منتظر کندل بریک (شکست) می‌ماند، به صورت اختیاری قیمت را تأیید می‌کند (اگر Inp_PriceConfirmation_Enabled فعال باشد)، فیلتر روند را چک می‌کند، معامله باز می‌کند، سپس معامله را با خروج پله‌ای (هنگام رسیدن به RR)، انتقال SL به ورود، و تریلینگ مدیریت می‌کند. این استراتژی برای بازارهای رنجی با شکست قوی مناسب است و با فیلتر ایچیموکو ریسک خلاف روند را کاهش می‌دهد.
-// منطق فایل CRange.mqh: این کلاس برای هر رنج جداگانه عمل می‌کند. ماشین حالت (ENUM_RANGE_STATE) جریان را کنترل می‌کند: از انتظار رنج جدید شروع می‌شود، رنج را شناسایی و ولید می‌کند، مسلح می‌کند، منتظر بریک و تأییدها می‌ماند، معامله اجرا می‌کند و مدیریت می‌کند. پاکسازی نرم برای ریست روزانه و سخت برای بستن معاملات در تعطیلات استفاده می‌شود. کش ATR برای بهینه‌سازی محاسبات، و استفاده از g_trendFilter برای فیلتر. تغییرات شامل چک اضافی برای cleanupTime، بهینه جستجو تیکت، خروج پله‌ای بهبودیافته، تریلینگ با حداقل تغییر، SL با بافر minStop و بر اساس نقطه مقابل رنج (برای BUY: کف رنج - adjustment، برای SELL: سقف رنج + adjustment)، بررسی فیلتر روند در هر کندل جدید تایم‌فریم فیلتر، و مدیریت اختیاری تایید قیمت (اگر خاموش، مستقیم از بریک به فیلتر یا ورود).
+// منطق فایل CRange.mqh: این کلاس برای هر رنج جداگانه عمل می‌کند. ماشین حالت (ENUM_RANGE_STATE) جریان را کنترل می‌کند: از انتظار رنج جدید شروع می‌شود، رنج را شناسایی و ولید می‌کند، مسلح می‌کند، منتظر بریک و تأییدها می‌ماند، معامله اجرا می‌کند و مدیریت می‌کند. پاکسازی نرم برای ریست روزانه و سخت برای بستن معاملات در تعطیلات استفاده می‌شود. کش ATR برای بهینه‌سازی محاسبات، و استفاده از g_trendFilter برای فیلتر. تغییرات شامل چک اضافی برای cleanupTime، بهینه جستجو تیکت، خروج پله‌ای بهبودیافته، تریلینگ با حداقل تغییر، SL با بافر minStop و بر اساس نقطه مقابل رنج (برای BUY: کف رنج - adjustment، برای SELL: سقف رنج + adjustment)، بررسی فیلتر روند در هر کندل جدید تایم‌فریم فیلتر، و مدیریت اختیاری تایید قیمت (اگر خاموش، مستقیم از بریک به فیلتر یا ورود). همچنین چک برای عدم وجود کندل در بازه رنج اضافه شده تا از خطاهای Edge Case جلوگیری شود. اصلاح کش ATR برای ثابت بودن در ورود و پویا در تریلینگ، با ریست کش در پاکسازی‌ها.
 
 #ifndef CRANGE_MQH
 #define CRANGE_MQH
@@ -578,9 +599,9 @@ private:
    int m_trailingAtrHandle;                // هندل ATR برای تریلینگ
    bool m_trailingActivated;               // فلگ فعال شدن تریلینگ پس از خروج پله‌ای
    ulong m_activeTicket;                   // تیکت معامله فعال برای مدیریت
-   double m_cachedATR;                     // کش ATR اصلی برای بهینه‌سازی
-   double m_cachedSlATR;                   // کش ATR برای SL
-   double m_cachedTrailingATR;             // کش ATR برای تریلینگ
+   double m_cachedATR;                     // کش ATR اصلی برای بهینه‌سازی (فقط برای ورود ثابت استفاده شود)
+   double m_cachedSlATR;                   // کش ATR برای SL (فقط برای ورود ثابت استفاده شود)
+   double m_cachedTrailingATR;             // کش ATR برای تریلینگ (فقط برای ورود ثابت استفاده شود، برای مدیریت پویا استفاده نشود)
    ENUM_TIMEFRAMES m_trendFilterTimeframe; // تایم‌فریم فیلتر روند برای ایچیموکو
    double m_potentialBuyPrice;             // قیمت افست خرید برای بریک
    double m_potentialSellPrice;            // قیمت افست فروش برای بریک
@@ -622,7 +643,7 @@ public:
       double partialClosePercent, int cleanupHours, color rangeColor,
       ENUM_TIMEFRAMES trendFilterTimeframe, int atrHandle)
    {
-      if(InpDebugMode) Print("مقداردهی رنج ", rangeIndex, " نسخه 1.7...");
+      if(InpDebugMode) Print("مقداردهی رنج ", rangeIndex, " نسخه 1.80...");
       m_rangeIndex = rangeIndex;
       m_magicNumber = magicNumber;
       m_timeframe = timeframe;
@@ -785,10 +806,7 @@ public:
       m_rangeHigh = 0;
       m_rangeLow = 0;
       m_cleanupTime = 0;
-      m_cachedATR = 0;
-      m_cachedSlATR = 0;
-      m_cachedTrailingATR = 0;
-      m_lastFilterBarTime = 0;
+      ResetCaches(); // ریست کش‌ها برای جلوگیری از استفاده از داده‌های کهنه
       ObjectDelete(0, m_buyLineName);
       ObjectDelete(0, m_sellLineName);
       ObjectDelete(0, m_rangeObjectName);
@@ -900,7 +918,16 @@ public:
    }
 
 private:
-   // شناسایی و ولیدیشن رنج: محاسبه سقف/کف، چک ارتفاع و رسم مستطیل
+   // ریست کش‌های ATR: برای جلوگیری از استفاده از داده‌های کهنه در رنج جدید یا پس از پاکسازی
+   void ResetCaches()
+   {
+      m_cachedATR = 0;
+      m_cachedSlATR = 0;
+      m_cachedTrailingATR = 0;
+      if(InpDebugMode) Print("رنج ", m_rangeIndex, ": کش‌های ATR ریست شدند.");
+   }
+
+   // شناسایی و ولیدیشن رنج: محاسبه سقف/کف، چک ارتفاع و رسم مستطیل، با چک عدم وجود کندل
    void IdentifyAndValidateRange()
    {
       if(InpDebugMode) Print("شناسایی رنج ", m_rangeIndex, "...");
@@ -927,6 +954,17 @@ private:
 
       int startShift = iBarShift(_Symbol, m_timeframe, startTime);
       int endShift = iBarShift(_Symbol, m_timeframe, endTime);
+
+      // چک برای عدم وجود کندل در بازه (Edge Case مدیریت تعطیلی بازار)
+      if(startShift < 0 || endShift < 0)
+      {
+         Print("خطا: کندلی در بازه زمانی مشخص شده برای رنج ", m_rangeIndex, " یافت نشد.");
+         m_lastInvalid = true;
+         m_lastEndTime = endTime;
+         m_currentState = RANGE_EXPIRED;
+         return;
+      }
+
       int bars = startShift - endShift + 1;
       if(bars <= 0)
       {
@@ -972,7 +1010,7 @@ private:
       if(InpDebugMode) Print("رنج ", m_rangeIndex, " معتبر است. تغییر حالت به IDENTIFIED.");
    }
 
-   // مسلح کردن رنج: محاسبه افست خرید/فروش و رسم خطوط گرافیکی
+   // مسلح کردن رنج: محاسبه افست خرید/فروش و رسم خطوط گرافیکی، با محاسبه ثابت ATR بدون کش (برای ثابت ماندن خطوط)
    void ArmAndWait()
    {
       if(InpDebugMode) Print("مسلح کردن رنج ", m_rangeIndex, "...");
@@ -980,7 +1018,15 @@ private:
       double offset;
       if(m_placementMode == PLACEMENT_ATR)
       {
-         offset = GetCachedATR() * m_atrMultiplier;
+         // محاسبه مستقیم ATR بدون کش برای ثابت ماندن افست (یک بار محاسبه و ثابت می‌ماند)
+         double atr[];
+         ArraySetAsSeries(atr, true);
+         if(CopyBuffer(m_atrHandle, 0, 1, 1, atr) <= 0)
+         {
+            Print("خطا در گرفتن ATR برای مسلح کردن رنج ", m_rangeIndex, ": ", GetLastError());
+            return;
+         }
+         offset = atr[0] * m_atrMultiplier;
       }
       else
       {
@@ -1162,7 +1208,15 @@ private:
       double adjustment;
       if(m_slMode == SL_ATR)
       {
-         adjustment = GetSlATR() * m_slAtrMultiplier;
+         // محاسبه مستقیم SL ATR بدون کش برای ثابت ماندن
+         double atr[];
+         ArraySetAsSeries(atr, true);
+         if(CopyBuffer(m_slAtrHandle, 0, 1, 1, atr) <= 0)
+         {
+            Print("خطا در گرفتن ATR برای SL رنج ", m_rangeIndex, ": ", GetLastError());
+            return;
+         }
+         adjustment = atr[0] * m_slAtrMultiplier;
       }
       else
       {
@@ -1268,12 +1322,14 @@ private:
       m_lastEndTime = 0;
       m_lastInvalid = false;
 
+      ResetCaches(); // ریست کش‌ها برای جلوگیری از استفاده از داده‌های کهنه
+
       m_currentState = RANGE_WAITING;
       m_cleanupTime = 0;
       if(InpDebugMode) Print("رنج ", m_rangeIndex, " برای روز بعد ریست شد (نرم).");
    }
 
-   // گرفتن ATR کش‌شده اصلی: اگر کش خالی باشد، از هندل کپی می‌گیرد
+   // گرفتن ATR کش‌شده اصلی: اگر کش خالی باشد، از هندل کپی می‌گیرد (فقط برای ورود استفاده شود)
    double GetCachedATR()
    {
       if(m_cachedATR <= 0)
@@ -1290,7 +1346,7 @@ private:
       return m_cachedATR;
    }
 
-   // گرفتن ATR کش‌شده برای SL: مشابه برای بهینه‌سازی محاسبات SL
+   // گرفتن ATR کش‌شده برای SL: مشابه برای بهینه‌سازی محاسبات SL (فقط برای ورود استفاده شود)
    double GetSlATR()
    {
       if(m_cachedSlATR <= 0)
@@ -1307,7 +1363,7 @@ private:
       return m_cachedSlATR;
    }
 
-   // گرفتن ATR کش‌شده برای تریلینگ: مشابه برای بهینه‌سازی تریلینگ
+   // گرفتن ATR کش‌شده برای تریلینگ: مشابه برای بهینه‌سازی تریلینگ (فقط برای ورود استفاده شود، برای مدیریت پویا استفاده نشود)
    double GetTrailingATR()
    {
       if(m_cachedTrailingATR <= 0)
@@ -1357,7 +1413,7 @@ public:
       }
 
       CTrade trade;
-      if(trade.PositionClosePartial(ticket, volume))
+      if(trade.PositionClose(ticket, volume))
       {
          if(InpDebugMode) Print("بخشی از پوزیشن با تیکت ", ticket, " بسته شد.");
          return true;
@@ -1392,7 +1448,7 @@ public:
       }
    }
 
-   // اعمال تریلینگ استاپ: محاسبه فاصله جدید، چک حداقل تغییر و تغییر SL
+   // اعمال تریلینگ استاپ: محاسبه فاصله جدید، چک حداقل تغییر و تغییر SL (محاسبه پویا ATR هر بار)
    static bool TrailingStop(ulong ticket, ENUM_TRAILING_MODE mode, int atrPeriod, double atrMultiplier, ENUM_TIMEFRAMES timeframe, int atrHandle)
    {
       if(!PositionSelectByTicket(ticket))
@@ -1421,7 +1477,7 @@ public:
             Print("خطا در گرفتن ATR برای تریلینگ: ", GetLastError());
             return false;
          }
-         trailingDistance = atr[0] * atrMultiplier;
+         trailingDistance = atr[0] * atrMultiplier; // محاسبه پویا هر بار بدون کش
       }
       else
       {
