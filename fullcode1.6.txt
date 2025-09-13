@@ -81,7 +81,7 @@ input int InpRange1_MaxRangePoints = 1500; // حداکثر ارتفاع رنج 1
 input ENUM_PLACEMENT_MODE InpRange1_Placement_Mode = PLACEMENT_ATR; // حالت ثبت سفارش رنج 1 (افست شکست)
 input int InpRange1_ATR_Period = 122; // دوره ATR برای ثبت سفارش رنج 1 (برای محاسبه افست پویا)
 input double InpRange1_ATR_Multiplier = 2.3; // ضریب ATR برای ثبت سفارش رنج 1 (برای تنظیم حساسیت افست)
-input ENUM_SL_STRATEGY InpRange1_SL_Strategy = SL_OPPOSITE_SIDE; // استراتژی جایگذاری استاپ لاس رنج 1 (مقابل یا سطح شکست)
+input ENUM_SL_STRATEGY InpRange1_SL_Strategy = SL_BREAKOUT_LEVEL; // استراتژی جایگذاری استاپ لاس رنج 1 (مقابل یا سطح شکست)
 input ENUM_SL_CALC_MODE InpRange1_SL_Calc_Mode = SL_CALC_ATR; // حالت محاسبه بافر استاپ لاس رنج 1
 input int InpRange1_SL_ATR_Period = 62; // دوره ATR برای بافر استاپ لاس رنج 1
 input double InpRange1_SL_ATR_Multiplier = 1.3; // ضریب ATR برای بافر استاپ لاس رنج 1
@@ -1841,3 +1841,4 @@ public:
 
 #endif
 ```
+
