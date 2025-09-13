@@ -1,10 +1,11 @@
 //+------------------------------------------------------------------+
-//| tester_v2.mqh                                                    |
+//| TestCustomAlgo.mqh                                               |
 //| Copyright 2025, HipoAlgoritm - Quantum Division                  |
 //| t.me/hipoalgoritm                                                |
 //+------------------------------------------------------------------+
 //| نسخه 2.2: بازمهندسی با تمرکز بر پایداری، کیفیت و مقاومت       |
 //| در برابر اورفیتینگ، با مقیاس‌بندی متعادل برای اپتیمایزر      |
+//| به‌روزرسانی: افزودن تحلیل مدت زمان معامله و ضریب ثبات عملکرد|
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2025, HipoAlgoritm - Quantum Division"
 #property link      "t.me/hipoalgoritm"
@@ -17,9 +18,11 @@ input int    InpMinTradesPerYear      = 20;  // حداقل تعداد معامل
 input double InpMaxAcceptableDrawdown = 30.0; // حداکثر دراوداون قابل قبول به درصد
 
 input group "فیلتر کیفیت معامله (مقابله با اورفیتینگ)";
-// این گروه شامل پارامترهای ورودی برای فیلتر کیفیت معاملات جهت جلوگیری از اورفیتینگ است.
 input double InpMinimumProfitToCostRatio = 2.0; // حداقل نسبت سود خالص هر معامله به هزینه آن
 input double InpEstimatedCostPerTrade    = 1.5; // هزینه تخمینی هر معامله (اسپرد+کمیسیون) به پیپ
+
+input group "تحلیل مدت زمان معامله";
+input double InpDurationPenaltyThreshold = 1.5; // آستانه جریمه برای نسبت میانگین زمان زیان‌ده به سودده (اگر بیشتر باشد، جریمه)
 
 //--- ساختارهای کمکی ---
 // ساختار برای نگهداری نقاط منحنی اکوییتی (برای محاسبات آماری مانند R-Squared و Sortino Ratio)
@@ -380,7 +383,108 @@ double CalculateDrawdownPenalty(double max_drawdown_percent)
 }
 
 //+------------------------------------------------------------------+
-//| تابع اصلی رویداد تستر (OnTester) - نسخه 2.2                    |
+//| [جدید] محاسبه فاکتور تحلیل مدت زمان معامله (Trade Duration Factor) |
+//+------------------------------------------------------------------+
+//| هدف: بررسی میانگین مدت زمان نگهداری معاملات سودده و زیان‌ده.   |
+//| اگر میانگین زمان زیان‌ده بیشتر از آستانه‌ای از میانگین سودده باشد، جریمه اعمال می‌شود. |
+//| این کار از استراتژی‌هایی که ضررها را نگه می‌دارند جلوگیری می‌کند. |
+//| ورودی: هیچ (از تاریخچه معاملات استفاده می‌کند)                |
+//| خروجی: فاکتور بین 0 تا 1 (1 یعنی بدون جریمه)                  |
+//+------------------------------------------------------------------+
+double CalculateTradeDurationFactor()
+{
+   if(!HistorySelect(0, TimeCurrent())) return 0.1;
+
+   uint total_deals = HistoryDealsTotal();
+   if(total_deals < 3) return 0.1;
+
+   double sum_profit_duration = 0.0;
+   int profit_count = 0;
+   double sum_loss_duration = 0.0;
+   int loss_count = 0;
+
+   for(uint i = 0; i < total_deals; i++)
+   {
+      ulong ticket = HistoryDealGetTicket(i);
+      if(ticket > 0 && HistoryDealGetInteger(ticket, DEAL_ENTRY) == DEAL_ENTRY_OUT)
+      {
+         datetime entry_time = (datetime)HistoryDealGetInteger(ticket, DEAL_TIME_SETUP);
+         datetime exit_time = (datetime)HistoryDealGetInteger(ticket, DEAL_TIME);
+         double duration = (double)(exit_time - entry_time); // مدت زمان به ثانیه
+
+         double net_profit = HistoryDealGetDouble(ticket, DEAL_PROFIT) +
+                             HistoryDealGetDouble(ticket, DEAL_COMMISSION) +
+                             HistoryDealGetDouble(ticket, DEAL_SWAP);
+
+         if(net_profit > 0)
+         {
+            sum_profit_duration += duration;
+            profit_count++;
+         }
+         else if(net_profit < 0)
+         {
+            sum_loss_duration += duration;
+            loss_count++;
+         }
+      }
+   }
+
+   if(profit_count == 0 || loss_count == 0) return 1.0; // اگر یکی از گروه‌ها خالی باشد، بدون جریمه
+
+   double avg_profit_duration = sum_profit_duration / profit_count;
+   double avg_loss_duration = sum_loss_duration / loss_count;
+
+   double duration_ratio = avg_loss_duration / avg_profit_duration;
+
+   if(duration_ratio <= InpDurationPenaltyThreshold) return 1.0;
+
+   // جریمه معکوس بر اساس نسبت بیش از آستانه
+   return 1.0 / (1.0 + (duration_ratio - InpDurationPenaltyThreshold));
+}
+
+//+------------------------------------------------------------------+
+//| [جدید] محاسبه ضریب ثبات عملکرد (Performance Stability Factor) |
+//+------------------------------------------------------------------+
+//| هدف: تقسیم دوره بک‌تست به دو نیمه و محاسبه معیارهای کلیدی برای هر نیمه. |
+//| سپس، اعمال جریمه برای تفاوت زیاد بین عملکرد دو نیمه.         |
+//| ورودی: هیچ (از تاریخچه معاملات استفاده می‌کند)                |
+//| خروجی: ضریب ثبات بین 0 تا 1                                   |
+//+------------------------------------------------------------------+
+double CalculatePerformanceStabilityFactor()
+{
+   datetime test_start = (datetime)SeriesInfoInteger(_Symbol, _Period, SERIES_FIRSTDATE);
+   datetime test_end = TimeCurrent();
+   if(test_start >= test_end) return 0.1;
+
+   datetime midpoint = test_start + (test_end - test_start) / 2;
+
+   // محاسبه برای نیمه اول
+   if(!HistorySelect(test_start, midpoint)) return 0.1;
+   double net_profit_h1 = TesterStatistics(STAT_PROFIT);
+   double recovery_factor_h1 = TesterStatistics(STAT_RECOVERY_FACTOR);
+   double r_squared_h1 = 0.0, sortino_ratio_h1 = 0.0;
+   ProcessEquityCurve(r_squared_h1, sortino_ratio_h1);
+   double score_h1 = net_profit_h1 * recovery_factor_h1 * sortino_ratio_h1 * r_squared_h1;
+
+   // محاسبه برای نیمه دوم
+   if(!HistorySelect(midpoint, test_end)) return 0.1;
+   double net_profit_h2 = TesterStatistics(STAT_PROFIT);
+   double recovery_factor_h2 = TesterStatistics(STAT_RECOVERY_FACTOR);
+   double r_squared_h2 = 0.0, sortino_ratio_h2 = 0.0;
+   ProcessEquityCurve(r_squared_h2, sortino_ratio_h2);
+   double score_h2 = net_profit_h2 * recovery_factor_h2 * sortino_ratio_h2 * r_squared_h2;
+
+   if(score_h1 + score_h2 <= 0) return 0.1;
+
+   // محاسبه تفاوت نسبی
+   double diff = MathAbs(score_h1 - score_h2) / (score_h1 + score_h2);
+
+   // ضریب ثبات: (score_h1 + score_h2) * (1 - diff) اما نرمال‌سازی به 0-1
+   return 1.0 - diff; // ساده: هرچه تفاوت کمتر، ضریب نزدیک‌تر به 1
+}
+
+//+------------------------------------------------------------------+
+//| تابع اصلی رویداد تستر (OnTester) - نسخه 2.2 با به‌روزرسانی‌ها  |
 //| معماری جدید با فرمول امتیازدهی یکپارچه و چندعاملی             |
 //+------------------------------------------------------------------+
 //| هدف: محاسبه امتیاز نهایی برای بهینه‌سازی استراتژی بر اساس معیارهای |
@@ -423,6 +527,8 @@ double OnTester()
    double trade_quality_factor = CalculateTradeQualityFactor();
    double profit_loss_ratio = CalculateProfitLossRatio();
    double drawdown_penalty = CalculateDrawdownPenalty(max_dd_percent);
+   double trade_duration_factor = CalculateTradeDurationFactor();
+   double performance_stability_factor = CalculatePerformanceStabilityFactor();
 
    // --- مرحله 4: فرمول نهایی امتیازدهی یکپارچه (Grand Unified Scoring Formula) ---
    // بخش 1: امتیاز پایه (سود و تعداد معاملات با تعدیل لگاریتمی)
@@ -431,8 +537,8 @@ double OnTester()
    // بخش 2: فاکتورهای اصلی عملکرد و ریسک
    double core_performance_factor = recovery_factor * MathMax(0.1, sortino_ratio) * profit_loss_ratio * MathMax(0.1, r_squared);
 
-   // بخش 3: فاکتورهای کیفیت، پایداری و واقع‌گرایی
-   double quality_stability_factor = MathMax(0.1, monthly_stability_score) * MathMax(0.1, trade_quality_factor) * MathMax(0.1, win_rate_factor);
+   // بخش 3: فاکتورهای کیفیت، پایداری و واقع‌گرایی (با افزودن فاکتورهای جدید)
+   double quality_stability_factor = MathMax(0.1, monthly_stability_score) * MathMax(0.1, trade_quality_factor) * MathMax(0.1, win_rate_factor) * MathMax(0.1, trade_duration_factor) * MathMax(0.1, performance_stability_factor);
    
    // محاسبه امتیاز نهایی و مقیاس‌بندی
    double final_score = base_score * core_performance_factor * quality_stability_factor * MathMax(0.1, drawdown_penalty) * 1000.0;
@@ -441,7 +547,7 @@ double OnTester()
    // --- مرحله 5: چاپ نتیجه برای دیباگ و تحلیل ---
    PrintFormat("نتیجه: سود خالص=%.2f, معاملات=%d -> امتیاز نهایی: %.0f", net_profit, (int)total_trades, final_score);
    PrintFormat("   -> جزئیات: PF=%.2f, RF=%.2f, Sortino=%.2f, R²=%.3f, P/L=%.2f", profit_factor, recovery_factor, sortino_ratio, r_squared, profit_loss_ratio);
-   PrintFormat("   -> کیفیت: پایداری ماهانه=%.3f, کیفیت معاملات=%.2f, WinRate=%.2f", monthly_stability_score, trade_quality_factor, win_rate_factor);
+   PrintFormat("   -> کیفیت: پایداری ماهانه=%.3f, کیفیت معاملات=%.2f, WinRate=%.2f, DurationFactor=%.2f, StabilityFactor=%.2f", monthly_stability_score, trade_quality_factor, win_rate_factor, trade_duration_factor, performance_stability_factor);
    PrintFormat("   -> ریسک: دراوداون=%.2f%%, جریمه=%.3f", max_dd_percent, drawdown_penalty);
    
    return final_score;
