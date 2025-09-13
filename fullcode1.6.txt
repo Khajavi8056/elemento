@@ -171,7 +171,6 @@ input color InpRange4_Color = clrYellow; // رنگ مستطیل رنج 4
 
 #endif
 ```
-
 ```mql5
 //+------------------------------------------------------------------+
 //|                                                       Elemento.mq5 |
@@ -180,11 +179,11 @@ input color InpRange4_Color = clrYellow; // رنگ مستطیل رنج 4
 //+------------------------------------------------------------------+
 // این فایل اصلی اکسپرت Elemento است و نقطه ورود برنامه (OnInit, OnDeinit, OnTick, OnTimer) را مدیریت می‌کند.
 // استراتژی کلی اکسپرت: Elemento بر اساس استراتژی شکست رنج عمل می‌کند که رنج‌های زمانی را شناسایی می‌کند، منتظر شکست با افست می‌ماند، با تایید اختیاری قیمت و فیلتر ایچیموکو تأیید می‌کند، معامله باز می‌کند و سپس با خروج پله‌ای و تریلینگ مدیریت می‌کند. این استراتژی برای بازارهای رنجی مانند سشن آسیا مناسب است و با فیلتر روند از معاملات خلاف جهت جلوگیری می‌کند تا ریسک کاهش یابد. اکسپرت از چهار رنج همزمان پشتیبانی می‌کند تا پوشش کامل بازار را فراهم کند.
-// منطق فایل Elemento.mq5: این فایل هماهنگ‌کننده اصلی است. در OnInit اطلاعات نماد را کش می‌کند، ورودی‌ها را ولید می‌کند، چهار نمونه CRange را مقداردهی می‌کند، هندل‌های ATR را ایجاد می‌کند، فیلتر روند و مدیر نمایش را راه‌اندازی می‌کند. در OnDeinit تمام منابع را آزاد و پاکسازی سخت انجام می‌دهد. در OnTick کندل‌های جدید را تشخیص می‌دهد، رنج‌ها را به‌روزرسانی می‌کند، وضعیت روند هر رنج را به طور جداگانه نمایش می‌دهد و در صورت بسته بودن بازار پاکسازی می‌کند. در OnTimer (هر ۶۰ ثانیه) معاملات فعال را مدیریت می‌کند تا بار OnTick کاهش یابد. متغیرهای جهانی مانند g_ranges برای نگهداری رنج‌ها، g_lastBarTime برای تشخیص کندل جدید، و g_trendFilter برای فیلتر روند استفاده می‌شوند. تغییرات جدید: آپدیت نمایشگر برای هر رنج جداگانه بر اساس کندل جدید در تایم‌فریم فیلتر آن رنج. این فایل سایر فایل‌ها را include می‌کند تا استراتژی کامل شود.
+// منطق فایل Elemento.mq5: این فایل هماهنگ‌کننده اصلی است. در OnInit اطلاعات نماد را کش می‌کند، ورودی‌ها را ولید می‌کند، چهار نمونه CRange را مقداردهی می‌کند، هندل‌های ATR را ایجاد می‌کند، فیلتر روند و مدیر نمایش را راه‌اندازی می‌کند. در OnDeinit تمام منابع را آزاد و پاکسازی سخت انجام می‌دهد. در OnTick کندل‌های جدید را تشخیص می‌دهد، رنج‌ها را به‌روزرسانی می‌کند، وضعیت روند هر رنج را به طور جداگانه نمایش می‌دهد و در صورت بسته بودن بازار پاکسازی می‌کند. در OnTimer (هر ۶۰ ثانیه) معاملات فعال را مدیریت می‌کند تا بار OnTick کاهش یابد. متغیرهای جهانی مانند g_ranges برای نگهداری رنج‌ها، g_lastBarTime برای تشخیص کندل جدید، و g_trendFilter برای فیلتر روند استفاده می‌شوند. تغییرات جدید: چک تاریخچه کندل‌ها (Bars) برای هر رنج جداگانه بر اساس تایم‌فریم اجرای آن رنج انجام می‌شود تا از لود کافی داده‌ها اطمینان حاصل شود. این فایل سایر فایل‌ها را include می‌کند تا استراتژی کامل شود.
 
 #property copyright "Copyright 2025, Hipoalgorithm Team"
 #property link      "https://hipoalgorithm.com"
-#property version   "1.90" // ورژن آپدیت شده برای اعمال تغییرات جدید (اصلاح SL strategy، رفع باگ فیلتر، نمایشگر چندرنج)
+#property version   "1.91" // ورژن آپدیت شده برای اعمال تغییرات جدید (اصلاح چک تاریخچه کندل‌ها)
 #property strict
 
 #include "Settings.mqh"
@@ -221,7 +220,7 @@ CVisualManager g_visualManager;
 int OnInit()
 {
    g_isTester = MQLInfoInteger(MQL_TESTER); // تشخیص حالت تستر برای تنظیم رفتار خاص
-   if(InpDebugMode) Print("شروع مقداردهی اکسپرت Elemento نسخه 1.90...");
+   if(InpDebugMode) Print("شروع مقداردهی اکسپرت Elemento نسخه 1.91...");
 
    // کش اطلاعات سیمبل (نماد) برای استفاده در محاسبه ریسک، حجم و فاصله‌ها
    g_tickValue = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);
@@ -334,14 +333,14 @@ int OnInit()
    // راه‌اندازی تایمر برای مدیریت معاملات هر ۶۰ ثانیه (بهینه‌سازی عملکرد OnTick)
    EventSetTimer(60);
 
-   Print("مقداردهی اکسپرت Elemento نسخه 1.90 با موفقیت انجام شد.");
+   Print("مقداردهی اکسپرت Elemento نسخه 1.91 با موفقیت انجام شد.");
    return(INIT_SUCCEEDED);
 }
 
 // تابع پایان اکسپرت (OnDeinit): پاکسازی منابع و پاکسازی سخت تمام رنج‌ها
 void OnDeinit(const int reason)
 {
-   if(InpDebugMode) Print("دفع مقداردهی اکسپرت Elemento نسخه 1.90. دلیل: ", reason);
+   if(InpDebugMode) Print("دفع مقداردهی اکسپرت Elemento نسخه 1.91. دلیل: ", reason);
 
    // پاکسازی سخت تمام رنج‌ها برای بستن معاملات باقی‌مانده و ریست (در صورت کرش یا خروج)
    for(int i = 0; i < 4; i++)
@@ -372,13 +371,6 @@ void OnDeinit(const int reason)
 // تابع اصلی هر تیک (OnTick): تشخیص کندل جدید، به‌روزرسانی رنج‌ها و چک بازار
 void OnTick()
 {
-   // چک لود کافی تاریخچه (برای جلوگیری از اجرای زودرس در بک‌تست تا بارگذاری کامل داده‌ها)
-   if(Bars(_Symbol, _Period) < 200)
-   {
-      // هنوز تاریخچه کافی لود نشده، رد می‌شود تا از خطاهای داده‌ای جلوگیری شود
-      return;
-   }
-
    // چک روز جدید برای به‌روزرسانی کش اطلاعات نماد (در صورت تغییر مشخصات بروکر)
    static datetime lastDay = 0;
    datetime currentDay = TimeCurrent() / 86400;
@@ -416,6 +408,14 @@ void OnTick()
       if(!enabled) continue;
 
       ENUM_TIMEFRAMES timeframe = g_ranges[i].GetTimeframe();
+
+      // چک لود کافی تاریخچه برای هر رنج جداگانه (بر اساس تایم‌فریم اجرای رنج برای جلوگیری از اجرای زودرس)
+      if(Bars(_Symbol, timeframe) < 200)
+      {
+         if(InpDebugMode) Print("تاریخچه کافی برای رنج ", i + 1, " لود نشده است. رد می‌شود.");
+         continue;
+      }
+
       datetime currentBarTime = iTime(_Symbol, timeframe, 0); // زمان کندل فعلی برای تشخیص جدید بودن
       if(currentBarTime == 0)
       {
@@ -529,7 +529,6 @@ bool IsMarketClosed()
    return true;
 }
 ```
-
 ```mql5
 //+------------------------------------------------------------------+
 //|                                                         CRange.mqh |
@@ -538,7 +537,7 @@ bool IsMarketClosed()
 //+------------------------------------------------------------------+
 // این فایل کلاس CRange را تعریف می‌کند که هسته استراتژی شکست رنج را مدیریت می‌کند.
 // استراتژی کلی اکسپرت: هر رنج زمانی (مانند سشن آسیا) را شناسایی می‌کند، سقف و کف آن را تعیین می‌کند، اگر ارتفاع معتبر باشد، با افست (بر اساس ATR یا درصد) مسلح می‌شود، منتظر کندل بریک (شکست) می‌ماند، به صورت اختیاری قیمت را تأیید می‌کند (اگر Inp_PriceConfirmation_Enabled فعال باشد)، فیلتر روند را به طور مستقل و در لحظه چک می‌کند، معامله باز می‌کند، سپس معامله را با خروج پله‌ای (هنگام رسیدن به RR)، انتقال SL به ورود، و تریلینگ مدیریت می‌کند. این استراتژی برای بازارهای رنجی با شکست قوی مناسب است و با فیلتر ایچیموکو ریسک خلاف روند را کاهش می‌دهد.
-// منطق فایل CRange.mqh: این کلاس برای هر رنج جداگانه عمل می‌کند. ماشین حالت (ENUM_RANGE_STATE) جریان را کنترل می‌کند: از انتظار رنج جدید شروع می‌شود، رنج را شناسایی و ولید می‌کند، مسلح می‌کند، منتظر بریک و تأییدها می‌ماند، معامله اجرا می‌کند و مدیریت می‌کند. پاکسازی نرم برای ریست روزانه و سخت برای بستن معاملات در تعطیلات استفاده می‌شود. کش ATR برای بهینه‌سازی محاسبات، و فراخوانی مستقل g_trendFilter برای فیلتر دینامیک. تغییرات شامل: اعمال ENUM_SL_STRATEGY در ExecuteTrade برای محاسبه SL (base point بر اساس strategy)، رفع باگ فیلتر با فراخوانی مستقل GetTrendDirection در لحظه، اضافه گتر UpdateLastFilterBarTime برای هماهنگی نمایش، چک اضافی برای cleanupTime، بهینه جستجو تیکت، خروج پله‌ای بهبودیافته، تریلینگ با حداقل تغییر، SL با بافر minStop، بررسی فیلتر روند در هر کندل جدید تایم‌فریم فیلتر، و مدیریت اختیاری تایید قیمت (اگر خاموش، مستقیم از بریک به فیلتر یا ورود). همچنین چک برای عدم وجود کندل در بازه رنج اضافه شده تا از خطاهای Edge Case جلوگیری شود. اصلاح کش ATR برای ثابت بودن در ورود و پویا در تریلینگ، با ریست کش در پاکسازی‌ها.
+// منطق فایل CRange.mqh: این کلاس برای هر رنج جداگانه عمل می‌کند. ماشین حالت (ENUM_RANGE_STATE) جریان را کنترل می‌کند: از انتظار رنج جدید شروع می‌شود، رنج را شناسایی و ولید می‌کند، مسلح می‌کند، منتظر بریک و تأییدها می‌ماند، معامله اجرا می‌کند و مدیریت می‌کند. پاکسازی نرم برای ریست روزانه و سخت برای بستن معاملات در تعطیلات استفاده می‌شود. کش ATR برای بهینه‌سازی محاسبات، و فراخوانی مستقل g_trendFilter برای فیلتر دینامیک. تغییرات شامل: اعمال ENUM_SL_STRATEGY در ExecuteTrade برای محاسبه SL (base point بر اساس strategy)، رفع باگ فیلتر با فراخوانی مستقل GetTrendDirection در لحظه، اضافه گتر UpdateLastFilterBarTime برای هماهنگی نمایش، چک اضافی برای cleanupTime، بهینه جستجو تیکت، خروج پله‌ای بهبودیافته، تریلینگ با حداقل تغییر، SL با بافر minStop، بررسی فیلتر روند در هر کندل جدید تایم‌فریم فیلتر، و مدیریت اختیاری تایید قیمت (اگر خاموش، مستقیم از بریک به فیلتر یا ورود). همچنین چک برای عدم وجود کندل در بازه رنج اضافه شده تا از خطاهای Edge Case جلوگیری شود. اصلاح کش ATR برای ثابت بودن در ورود و پویا در تریلینگ، با ریست کش در پاکسازی‌ها. تغییرات جدید: اصلاح منطق تایم‌اوت (m_waitCounter) برای حالت‌های تایید قیمت و فیلتر روند، به طوری که شمارنده بر اساس کندل‌های تایم‌فریم اجرای رنج (Execution_Timeframe) افزایش یابد، اما برای فیلتر روند، همیشه وضعیت آخرین روند چک شود حتی اگر کندل جدید در تایم‌فریم فیلتر نباشد، تا تایم‌اوت بر اساس تعداد کندل‌های رنج پیش برود.
 
 #ifndef CRANGE_MQH
 #define CRANGE_MQH
@@ -605,7 +604,7 @@ private:
    double m_potentialBuyPrice;             // قیمت افست خرید برای بریک
    double m_potentialSellPrice;            // قیمت افست فروش برای بریک
    double m_breakerCandleLevel;            // سطح High/Low کندل بریک برای تأیید
-   int m_waitCounter;                      // شمارنده تایم‌اوت برای تأییدها
+   int m_waitCounter;                      // شمارنده تایم‌اوت برای تأییدها (افزایش بر اساس کندل‌های Execution_Timeframe)
    string m_buyLineName;                   // نام خط گرافیکی خرید
    string m_sellLineName;                  // نام خط گرافیکی فروش
    datetime m_lastEndTime;                 // زمان پایان آخرین رنج برای جلوگیری از تکرار
@@ -642,7 +641,7 @@ public:
       double rrRatio, double partialClosePercent, int cleanupHours, color rangeColor,
       ENUM_TIMEFRAMES trendFilterTimeframe, int atrHandle)
    {
-      if(InpDebugMode) Print("مقداردهی رنج ", rangeIndex, " نسخه 1.90...");
+      if(InpDebugMode) Print("مقداردهی رنج ", rangeIndex, " نسخه 1.91...");
       m_rangeIndex = rangeIndex;
       m_magicNumber = magicNumber;
       m_timeframe = timeframe;
@@ -756,11 +755,11 @@ public:
             break;
          case WAITING_FOR_PRICE_CONFIRMATION_BUY:
          case WAITING_FOR_PRICE_CONFIRMATION_SELL:
-            WaitForPriceConfirmation(); // تأیید کلوز بعدی برای جلوگیری از شکست کاذب
+            WaitForPriceConfirmation(); // تأیید کلوز بعدی برای جلوگیری از شکست کاذب (count بر اساس Execution TF)
             break;
          case WAITING_FOR_FILTER_CONFIRMATION_BUY:
          case WAITING_FOR_FILTER_CONFIRMATION_SELL:
-            WaitForFilterConfirmation(); // چک جهت روند با ایچیموکو مستقل و دینامیک
+            WaitForFilterConfirmation(); // چک جهت روند با ایچیموکو مستقل و دینامیک (count بر اساس Execution TF حتی اگر کندل فیلتر جدید نباشد)
             break;
          case EXECUTE_TRADE_BUY:
          case EXECUTE_TRADE_SELL:
@@ -1105,7 +1104,7 @@ private:
       }
    }
 
-   // تأیید قیمت: چک کلوز بعدی برای اطمینان از ادامه بریک (با تایم‌اوت)
+   // تأیید قیمت: چک کلوز بعدی برای اطمینان از ادامه بریک (با تایم‌اوت بر اساس کندل‌های Execution_Timeframe)
    void WaitForPriceConfirmation()
    {
       double close1 = iClose(_Symbol, m_timeframe, 1);
@@ -1123,7 +1122,7 @@ private:
          m_waitCounter = 0;
          if(InpDebugMode) Print("رنج ", m_rangeIndex, " - ", (isBuy ? "BUY" : "SELL"), " Price Confirmation received!");
          m_currentState = isBuy ? (Inp_IchimokuFilter_Enabled ? WAITING_FOR_FILTER_CONFIRMATION_BUY : EXECUTE_TRADE_BUY) : (Inp_IchimokuFilter_Enabled ? WAITING_FOR_FILTER_CONFIRMATION_SELL : EXECUTE_TRADE_SELL);
-         m_lastFilterBarTime = iTime(_Symbol, m_trendFilterTimeframe, 0); // تنظیم زمان کندل فیلتر
+         m_lastFilterBarTime = iTime(_Symbol, m_trendFilterTimeframe, 0); // تنظیم زمان کندل فیلتر برای هماهنگی
       }
       else
       {
@@ -1147,10 +1146,10 @@ private:
       }
    }
 
-   // تأیید فیلتر روند: چک جهت روند فقط در کندل جدید تایم‌فریم فیلتر، مستقل و دینامیک
+   // تأیید فیلتر روند: چک جهت روند مستقل و دینامیک (بدون شرط کندل جدید برای فیلتر، تا شمارنده بر اساس Execution TF افزایش یابد و فیلتر همیشه آخرین وضعیت را چک کند)
    void WaitForFilterConfirmation()
    {
-      // گرفتن زمان کندل فعلی در تایم‌فریم فیلتر
+      // گرفتن زمان کندل فعلی در تایم‌فریم فیلتر (برای تشخیص اگر جدید است یا نه، اما شرط return برداشته شده)
       datetime currentFilterBarTime = iTime(_Symbol, m_trendFilterTimeframe, 0);
       if(currentFilterBarTime == 0)
       {
@@ -1158,18 +1157,9 @@ private:
          return;
       }
 
-      // اگر کندل جدیدی در تایم‌فریم فیلتر نیست، منتظر بمان
-      if(currentFilterBarTime == m_lastFilterBarTime)
-      {
-         if(InpDebugMode) Print("رنج ", m_rangeIndex, " - در انتظار کندل جدید در تایم‌فریم فیلتر ", EnumToString(m_trendFilterTimeframe));
-         return;
-      }
-
-      // کندل جدید تشخیص داده شده، به‌روزرسانی زمان و بررسی فیلتر مستقل
-      m_lastFilterBarTime = currentFilterBarTime;
-
+      // همیشه وضعیت آخرین روند را چک کن (حتی اگر کندل جدید نباشد، برای اجازه دادن به تایم‌اوت بر اساس Execution TF)
       bool isBuy = (m_currentState == WAITING_FOR_FILTER_CONFIRMATION_BUY);
-      ENUM_TREND_DIRECTION currentTrend = g_trendFilter.GetTrendDirection(m_trendFilterTimeframe); // فراخوانی مستقل و دینامیک
+      ENUM_TREND_DIRECTION currentTrend = g_trendFilter.GetTrendDirection(m_trendFilterTimeframe); // فراخوانی مستقل و دینامیک همیشه آخرین را می‌دهد
 
       bool filterPassed = !Inp_IchimokuFilter_Enabled || (isBuy && (currentTrend == TREND_BUY || currentTrend == TREND_NEUTRAL)) || (!isBuy && (currentTrend == TREND_SELL || currentTrend == TREND_NEUTRAL));
 
@@ -1199,6 +1189,12 @@ private:
             m_breakerCandleLevel = 0;
             m_currentState = ARMED_AND_WAITING;
          }
+      }
+
+      // آپدیت زمان آخرین کندل فیلتر فقط اگر جدید باشد (برای نمایش جداگانه)
+      if(currentFilterBarTime > m_lastFilterBarTime)
+      {
+         m_lastFilterBarTime = currentFilterBarTime;
       }
    }
 
@@ -1397,7 +1393,6 @@ private:
 
 #endif
 ```
-
 ```mql5
 //+------------------------------------------------------------------+
 //|                                                     TradeManager.mqh |
@@ -1567,7 +1562,6 @@ public:
 
 #endif
 ```
-
 ```mql5
 //+------------------------------------------------------------------+
 //|                                                     RiskManager.mqh |
@@ -1631,7 +1625,6 @@ public:
 
 #endif
 ```
-
 ```mql5
 //+------------------------------------------------------------------+
 //|                                                      TimeHelper.mqh |
@@ -1697,7 +1690,6 @@ public:
 
 #endif
 ```
-
 ```mql5
 //+------------------------------------------------------------------+
 //|                                                     TrendFilter.mqh |
@@ -1706,7 +1698,7 @@ public:
 //+------------------------------------------------------------------+
 // این فایل کلاس CTrendFilter را تعریف می‌کند که فیلتر روند بر اساس ایچیموکو را مدیریت می‌کند.
 // استراتژی کلی اکسپرت: فیلتر روند برای جلوگیری از معاملات خلاف جهت استفاده می‌شود؛ اگر ابر ایچیموکو فلت (خنثی) یا هم‌جهت باشد، معامله مجاز است، иначе رد می‌شود.
-// منطق فایل TrendFilter.mqh: enum ENUM_TREND_DIRECTION برای خروجی (BUY/SELL/NEUTRAL). تابع GetTrendDirection هندل ایچیموکو را برای تایم‌فریم مشخص می‌سازد، سنکو A/B را می‌گیرد، تفاوت را چک می‌کند (اگر کمتر از آستانه، خنثی)، و جهت را تعیین می‌کند (A > B برای BUY). هندل پس از استفاده آزاد می‌شود تا از leak جلوگیری شود. Init/Deinit خالی هستند زیرا هندل پویا ساخته می‌شود. این فایل توسط CRange برای تأیید فیلتر مستقل فراخوانی می‌شود. تغییرات: رفع باگ با تأکید بر فراخوانی دینامیک هر بار. همچنین، اصلاح بافرها برای سنکو A (بافر 2) و سنکو B (بافر 3) برای محاسبه دقیق ابر آینده. این اصلاح تضمین می‌کند که فیلتر با هر کندل جدید در تایم‌فریم مربوطه آپدیت شود و وضعیت بولیش/بریش/خنثی به درستی تعیین شود.
+// منطق فایل TrendFilter.mqh: enum ENUM_TREND_DIRECTION برای خروجی (BUY/SELL/NEUTRAL). تابع GetTrendDirection سنکو A/B را به طور دستی محاسبه می‌کند (با استفاده از iHigh/iLow برای دوره‌های تنکان، کیجون و سنکو B)، تفاوت را چک می‌کند (اگر کمتر از آستانه، خنثی)، و جهت را تعیین می‌کند (A > B برای BUY). این محاسبه دستی برای جلوگیری از مشکلات دسترسی به کندل‌های آینده در MT5 انجام می‌شود. Init/Deinit خالی هستند زیرا هیچ هندلی ثابت نیست. این فایل توسط CRange برای تأیید فیلتر مستقل فراخوانی می‌شود. تغییرات: محاسبه دستی سنکو A/B برای آپدیت دقیق با هر کندل جدید در تایم‌فریم فیلتر.
 
 #ifndef TREND_FILTER_MQH
 #define TREND_FILTER_MQH
@@ -1724,12 +1716,12 @@ class CTrendFilter
 {
 public:
    CTrendFilter() {}
-   // Init خالی (هیچ هندلی ثابت ساخته نمی‌شود، پویا در GetTrendDirection)
+   // Init خالی (هیچ هندلی ثابت ساخته نمی‌شود، محاسبه دستی در GetTrendDirection)
    bool Init() { return true; }
    // Deinit خالی (هیچ منبعی ثابت برای آزادسازی نیست)
    void Deinit() {}
 
-   // گرفتن جهت روند: ساخت پویا هندل، محاسبه ابر، تعیین جهت و آزادسازی هندل (دینامیک هر بار)
+   // گرفتن جهت روند: محاسبه دستی سنکو A/B بر اساس داده‌های گذشته (برای ابر آینده بدون نیاز به کندل آینده)
    ENUM_TREND_DIRECTION GetTrendDirection(ENUM_TIMEFRAMES timeframe)
    {
       if(!Inp_IchimokuFilter_Enabled)
@@ -1737,35 +1729,38 @@ public:
          return TREND_NEUTRAL; // اگر فیلتر خاموش باشد، همیشه خنثی فرض می‌شود
       }
 
-      int ichimokuHandle = iIchimoku(_Symbol, timeframe, Inp_Ichimoku_Tenkan, Inp_Ichimoku_Kijun, Inp_Ichimoku_SenkouB);
-      if(ichimokuHandle == INVALID_HANDLE)
-      {
-         Print("خطا در ایجاد هندل ایچیموکو برای تایم فریم ", EnumToString(timeframe));
-         return TREND_NEUTRAL;
-      }
+      // محاسبه تنکان-سن (برای کندل بسته آخر، shift 1)
+      int tenkanHighIdx = iHighest(_Symbol, timeframe, MODE_HIGH, Inp_Ichimoku_Tenkan, 1);
+      int tenkanLowIdx = iLowest(_Symbol, timeframe, MODE_LOW, Inp_Ichimoku_Tenkan, 1);
+      double tenkanHigh = iHigh(_Symbol, timeframe, tenkanHighIdx);
+      double tenkanLow = iLow(_Symbol, timeframe, tenkanLowIdx);
+      double tenkan = (tenkanHigh + tenkanLow) / 2.0;
 
-      double senkouA[], senkouB[];
-      ArraySetAsSeries(senkouA, true);
-      ArraySetAsSeries(senkouB, true);
+      // محاسبه کیجون-سن
+      int kijunHighIdx = iHighest(_Symbol, timeframe, MODE_HIGH, Inp_Ichimoku_Kijun, 1);
+      int kijunLowIdx = iLowest(_Symbol, timeframe, MODE_LOW, Inp_Ichimoku_Kijun, 1);
+      double kijunHigh = iHigh(_Symbol, timeframe, kijunHighIdx);
+      double kijunLow = iLow(_Symbol, timeframe, kijunLowIdx);
+      double kijun = (kijunHigh + kijunLow) / 2.0;
 
-      // اصلاح بافرها: بافر 2 برای Senkou A، بافر 3 برای Senkou B (ابر آینده)
-      if(CopyBuffer(ichimokuHandle, 2, 0, 1, senkouA) <= 0 || CopyBuffer(ichimokuHandle, 3, 0, 1, senkouB) <= 0)
-      {
-         Print("خطا در گرفتن داده‌های ایچیموکو: ", GetLastError());
-         IndicatorRelease(ichimokuHandle); // آزادسازی حتی در خطا برای جلوگیری از leak
-         return TREND_NEUTRAL;
-      }
-      
-      IndicatorRelease(ichimokuHandle); // آزادسازی هندل پس از استفاده موفق
+      // محاسبه سنکو اسپن A (برای ابر آینده)
+      double senkouA = (tenkan + kijun) / 2.0;
 
-      double diff = MathAbs(senkouA[0] - senkouB[0]) / _Point;
+      // محاسبه سنکو اسپن B (برای ابر آینده)
+      int senkouBHighIdx = iHighest(_Symbol, timeframe, MODE_HIGH, Inp_Ichimoku_SenkouB, 1);
+      int senkouBLowIdx = iLowest(_Symbol, timeframe, MODE_LOW, Inp_Ichimoku_SenkouB, 1);
+      double senkouBHigh = iHigh(_Symbol, timeframe, senkouBHighIdx);
+      double senkouBLow = iLow(_Symbol, timeframe, senkouBLowIdx);
+      double senkouB = (senkouBHigh + senkouBLow) / 2.0;
+
+      double diff = MathAbs(senkouA - senkouB) / _Point;
       if(diff < Inp_Ichimoku_FlatThreshold_Points)
       {
          if(InpDebugMode) Print("ابر ایچیموکو فلت است. جهت: NEUTRAL");
          return TREND_NEUTRAL;
       }
 
-      if(senkouA[0] > senkouB[0])
+      if(senkouA > senkouB)
       {
          if(InpDebugMode) Print("جهت روند: BUY");
          return TREND_BUY;
@@ -1780,7 +1775,6 @@ public:
 
 #endif
 ```
-
 ```mql5
 //+------------------------------------------------------------------+
 //|                                                   VisualManager.mqh |
