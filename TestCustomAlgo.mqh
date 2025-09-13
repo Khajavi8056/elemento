@@ -293,14 +293,12 @@ double CalculateSortinoRatio(const EquityPoint &equity_curve[])
    return average_return / downside_deviation;
 }
 
+////+------------------------------------------------------------------+
+//| [اصلاح نهایی] محاسبه معیارهای پیشرفته مبتنی بر منحنی اکوییتی     |
 //+------------------------------------------------------------------+
-//| [بهینه‌سازی شده] محاسبه معیارهای پیشرفته مبتنی بر منحنی اکوییتی |
-//+------------------------------------------------------------------+
-//| این تابع اکنون وظیفه ساخت منحنی اکوییتی و سپس فراخوانی توابع |
-//| محاسباتی دیگر (R-Squared و Sortino) را بر عهده دارد تا از |
-//| محاسبات تکراری جلوگیری شود.                                    |
-//| ورودی: خروجی‌های r_squared و sortino_ratio (به عنوان رفرنس)    |
-//| خروجی: هیچ (مقادیر را در ورودی‌ها پر می‌کند)                   |
+//| نسخه جدید به TesterStatistics وابسته نیست و فقط بر اساس تاریخچه |
+//| انتخاب شده توسط HistorySelect کار می‌کند. این باعث می‌شود برای   |
+//| تحلیل بازه‌های زمانی خاص (مثل نیمه‌های بک‌تست) دقیق باشد.     |
 //+------------------------------------------------------------------+
 void ProcessEquityCurve(double &r_squared, double &sortino_ratio)
 {
@@ -308,20 +306,18 @@ void ProcessEquityCurve(double &r_squared, double &sortino_ratio)
    r_squared = 0.0;
    sortino_ratio = 0.0;
 
-   if(!HistorySelect(0, TimeCurrent())) return;
+   // [اصلاح شده] HistorySelect قبلاً در تابع والد (مثلاً CalculateMetricsForPeriod) فراخوانی شده است.
    uint total_deals = HistoryDealsTotal();
    if(total_deals < 3) return;
 
-   // --- 1. ساخت آرایه منحنی اکوییتی (Equity Curve) ---
+   // --- 1. ساخت آرایه منحنی اکوییتی نسبی (Relative Equity Curve) ---
    EquityPoint equity_curve[];
    ArrayResize(equity_curve, (int)total_deals + 1);
 
-   double final_balance = AccountInfoDouble(ACCOUNT_BALANCE);
-   double net_profit = TesterStatistics(STAT_PROFIT);
-   double initial_balance = final_balance - net_profit;
-   
+   // [اصلاح شده] به جای استفاده از بالانس اولیه، از یک منحنی نسبی که از صفر شروع می‌شود استفاده می‌کنیم.
+   // این برای محاسبه سورتینو و R-Squared کاملاً کافی و صحیح است.
    equity_curve[0].time = (total_deals > 0) ? (datetime)HistoryDealGetInteger(0, DEAL_TIME) - 1 : 0;
-   equity_curve[0].balance = initial_balance;
+   equity_curve[0].balance = 0.0; // شروع از صفر
 
    int equity_points = 1;
    for(uint i = 0; i < total_deals; i++)
@@ -361,6 +357,7 @@ void ProcessEquityCurve(double &r_squared, double &sortino_ratio)
    sortino_ratio = CalculateSortinoRatio(equity_curve);
 }
 
+
 //+------------------------------------------------------------------+
 //| [بدون تغییر] محاسبه ضریب مجازات دراوداون با منحنی کسینوسی   |
 //+------------------------------------------------------------------+
@@ -383,7 +380,7 @@ double CalculateDrawdownPenalty(double max_drawdown_percent)
 }
 
 //+------------------------------------------------------------------+
-//| [جدید] محاسبه فاکتور تحلیل مدت زمان معامله (Trade Duration Factor) |
+//| [اصلاح شده] محاسبه فاکتور تحلیل مدت زمان معامله (Trade Duration Factor) |
 //+------------------------------------------------------------------+
 //| هدف: بررسی میانگین مدت زمان نگهداری معاملات سودده و زیان‌ده.   |
 //| اگر میانگین زمان زیان‌ده بیشتر از آستانه‌ای از میانگین سودده باشد، جریمه اعمال می‌شود. |
@@ -396,7 +393,7 @@ double CalculateTradeDurationFactor()
    if(!HistorySelect(0, TimeCurrent())) return 0.1;
 
    uint total_deals = HistoryDealsTotal();
-   if(total_deals < 3) return 0.1;
+   if(total_deals < 3) return 1.0; // اگر تعداد معاملات کم است، جریمه‌ای نیست
 
    double sum_profit_duration = 0.0;
    int profit_count = 0;
@@ -408,8 +405,24 @@ double CalculateTradeDurationFactor()
       ulong ticket = HistoryDealGetTicket(i);
       if(ticket > 0 && HistoryDealGetInteger(ticket, DEAL_ENTRY) == DEAL_ENTRY_OUT)
       {
-         datetime entry_time = (datetime)HistoryDealGetInteger(ticket, DEAL_TIME_SETUP);
          datetime exit_time = (datetime)HistoryDealGetInteger(ticket, DEAL_TIME);
+         ulong position_id = HistoryDealGetInteger(ticket, DEAL_POSITION_ID);
+         datetime entry_time = 0;
+
+         // [اصلاح شده] جستجو برای یافتن زمان ورود معامله متناظر
+         for(uint j = 0; j < i; j++)
+         {
+            ulong entry_ticket = HistoryDealGetTicket(j);
+            if(HistoryDealGetInteger(entry_ticket, DEAL_POSITION_ID) == position_id &&
+               HistoryDealGetInteger(entry_ticket, DEAL_ENTRY) == DEAL_ENTRY_IN)
+            {
+               entry_time = (datetime)HistoryDealGetInteger(entry_ticket, DEAL_TIME);
+               break; // معامله ورودی پیدا شد
+            }
+         }
+
+         if(entry_time == 0) continue; // اگر زمان ورود پیدا نشد، از این معامله بگذر
+
          double duration = (double)(exit_time - entry_time); // مدت زمان به ثانیه
 
          double net_profit = HistoryDealGetDouble(ticket, DEAL_PROFIT) +
@@ -429,10 +442,13 @@ double CalculateTradeDurationFactor()
       }
    }
 
-   if(profit_count == 0 || loss_count == 0) return 1.0; // اگر یکی از گروه‌ها خالی باشد، بدون جریمه
+   if(profit_count == 0 || loss_count == 0 || sum_profit_duration == 0) return 1.0; // اگر یکی از گروه‌ها خالی باشد، بدون جریمه
 
    double avg_profit_duration = sum_profit_duration / profit_count;
    double avg_loss_duration = sum_loss_duration / loss_count;
+
+   // جلوگیری از تقسیم بر صفر اگر میانگین سود صفر باشد
+   if(avg_profit_duration <= 0) return 1.0;
 
    double duration_ratio = avg_loss_duration / avg_profit_duration;
 
@@ -443,44 +459,91 @@ double CalculateTradeDurationFactor()
 }
 
 //+------------------------------------------------------------------+
-//| [جدید] محاسبه ضریب ثبات عملکرد (Performance Stability Factor) |
+//| [جدید] تابع کمکی برای محاسبه آمار پیشرفته در یک بازه زمانی خاص |
 //+------------------------------------------------------------------+
-//| هدف: تقسیم دوره بک‌تست به دو نیمه و محاسبه معیارهای کلیدی برای هر نیمه. |
-//| سپس، اعمال جریمه برای تفاوت زیاد بین عملکرد دو نیمه.         |
-//| ورودی: هیچ (از تاریخچه معاملات استفاده می‌کند)                |
-//| خروجی: ضریب ثبات بین 0 تا 1                                   |
+void CalculateMetricsForPeriod(datetime from_time, datetime to_time, double &out_score)
+{
+   out_score = 0;
+   if(!HistorySelect(from_time, to_time)) return;
+
+   uint total_deals = HistoryDealsTotal();
+   if(total_deals < 3) return;
+
+   // --- محاسبه دستی سود خالص و دراوداون برای بازه ---
+   double net_profit = 0;
+   double max_drawdown = 0;
+   double peak_balance = 0;
+   double current_balance = 0;
+
+   for(uint i = 0; i < total_deals; i++)
+   {
+      ulong ticket = HistoryDealGetTicket(i);
+      if(ticket > 0 && HistoryDealGetInteger(ticket, DEAL_ENTRY) == DEAL_ENTRY_OUT)
+      {
+         double deal_profit = HistoryDealGetDouble(ticket, DEAL_PROFIT) +
+                              HistoryDealGetDouble(ticket, DEAL_COMMISSION) +
+                              HistoryDealGetDouble(ticket, DEAL_SWAP);
+         net_profit += deal_profit;
+         current_balance += deal_profit;
+
+         if(current_balance > peak_balance)
+         {
+            peak_balance = current_balance;
+         }
+         double drawdown = peak_balance - current_balance;
+         if(drawdown > max_drawdown)
+         {
+            max_drawdown = drawdown;
+         }
+      }
+   }
+
+   if(net_profit <= 0) return;
+   if(max_drawdown == 0) max_drawdown = net_profit; // برای جلوگیری از تقسیم بر صفر
+
+   double recovery_factor = net_profit / max_drawdown;
+
+   // --- ساخت منحنی اکوییتی نسبی و محاسبه سورتینو و R^2 ---
+   double r_squared = 0.0, sortino_ratio = 0.0;
+   ProcessEquityCurve(r_squared, sortino_ratio); // ProcessEquityCurve باید با HistorySelect کار کند
+
+   // امتیاز نهایی برای این بازه
+   out_score = net_profit * recovery_factor * MathMax(0.1, sortino_ratio) * MathMax(0.1, r_squared);
+}
+
+//+------------------------------------------------------------------+
+//| [اصلاح شده] محاسبه ضریب ثبات عملکرد (Performance Stability Factor) |
+//+------------------------------------------------------------------+
+//| هدف: تقسیم دوره بک‌تست به دو نیمه و مقایسه عملکرد دو نیمه.    |
+//| این کار پایداری استراتژی در شرایط مختلف بازار را می‌سنجد.       |
 //+------------------------------------------------------------------+
 double CalculatePerformanceStabilityFactor()
 {
    datetime test_start = (datetime)SeriesInfoInteger(_Symbol, _Period, SERIES_FIRSTDATE);
    datetime test_end = TimeCurrent();
-   if(test_start >= test_end) return 0.1;
+   if(test_start >= test_end || (test_end - test_start) < 86400 * 60) return 0.1; // حداقل 2 ماه داده لازم است
 
    datetime midpoint = test_start + (test_end - test_start) / 2;
 
-   // محاسبه برای نیمه اول
-   if(!HistorySelect(test_start, midpoint)) return 0.1;
-   double net_profit_h1 = TesterStatistics(STAT_PROFIT);
-   double recovery_factor_h1 = TesterStatistics(STAT_RECOVERY_FACTOR);
-   double r_squared_h1 = 0.0, sortino_ratio_h1 = 0.0;
-   ProcessEquityCurve(r_squared_h1, sortino_ratio_h1);
-   double score_h1 = net_profit_h1 * recovery_factor_h1 * sortino_ratio_h1 * r_squared_h1;
+   // محاسبه آمار برای نیمه اول
+   double score_h1 = 0;
+   CalculateMetricsForPeriod(test_start, midpoint, score_h1);
 
-   // محاسبه برای نیمه دوم
-   if(!HistorySelect(midpoint, test_end)) return 0.1;
-   double net_profit_h2 = TesterStatistics(STAT_PROFIT);
-   double recovery_factor_h2 = TesterStatistics(STAT_RECOVERY_FACTOR);
-   double r_squared_h2 = 0.0, sortino_ratio_h2 = 0.0;
-   ProcessEquityCurve(r_squared_h2, sortino_ratio_h2);
-   double score_h2 = net_profit_h2 * recovery_factor_h2 * sortino_ratio_h2 * r_squared_h2;
+   // محاسبه آمار برای نیمه دوم
+   double score_h2 = 0;
+   CalculateMetricsForPeriod(midpoint, test_end, score_h2);
 
-   if(score_h1 + score_h2 <= 0) return 0.1;
+   // [اصلاح شده] ProcessEquityCurve و سایر توابع باید بعد از هر CalculateMetricsForPeriod
+   // با داده‌های کل دوره ریست شوند. برای این کار، HistorySelect را به کل دوره برمی‌گردانیم.
+   HistorySelect(0, TimeCurrent());
+
+   if(score_h1 <= 0 || score_h2 <= 0) return 0.1; // اگر هر نیمه زیان‌ده باشد، امتیاز پایین
 
    // محاسبه تفاوت نسبی
    double diff = MathAbs(score_h1 - score_h2) / (score_h1 + score_h2);
-
-   // ضریب ثبات: (score_h1 + score_h2) * (1 - diff) اما نرمال‌سازی به 0-1
-   return 1.0 - diff; // ساده: هرچه تفاوت کمتر، ضریب نزدیک‌تر به 1
+   
+   // ضریب ثبات: هرچه تفاوت کمتر، ضریب نزدیک‌تر به 1
+   return 1.0 - diff;
 }
 
 //+------------------------------------------------------------------+
