@@ -1,4 +1,4 @@
-
+خوب خیلی دقیق کد زیر را بررسی کن ببین مشکل چیزی که نداره و مواردی که خواستیم به درستی پیاده شده و باک و خطایی اجرای منطقی که ندارد 
 
 ```mql5
 //+------------------------------------------------------------------+
@@ -7,8 +7,8 @@
 //|                       https://hipoalgorithm.com                  |
 //+------------------------------------------------------------------+
 // این فایل نقش تعریف ساختارهای پایه‌ای و پارامترهای ورودی (inputs) اکسپرت Elemento را بر عهده دارد.
-// استراتژی کلی اکسپرت: Elemento یک سیستم معاملاتی مبتنی بر شکست رنج (Breakout Range) است که بر اساس زمان‌های مشخص (رنج‌های زمانی) عمل می‌کند. این اکسپرت تا چهار رنج زمانی مختلف را تعریف می‌کند، هر رنج را بر اساس ارتفاع قیمت (High/Low) در بازه زمانی تعیین‌شده شناسایی می‌کند، سپس منتظر شکست (Breakout) سقف یا کف رنج با افست (Offset) مبتنی بر ATR یا درصد ارتفاع رنج می‌ماند. پس از شکست، با تأیید اختیاری قیمت (کندل تایید) و فیلتر روند ایچیموکو، معامله خرید یا فروش باز می‌کند. مدیریت معامله شامل استاپ لاس (SL) مبتنی بر نقطه مقابل رنج به علاوه تنظیم ATR یا درصد (برای پوشش کامل رنج و جلوگیری از زیان زودرس)، تیک پروفیت (TP) بر اساس نسبت R:R، خروج پله‌ای (Partial Close) در رسیدن به نسبت مشخص سود به ریسک، و تریلینگ استاپ (Trailing Stop) برای حفظ سود است. پاکسازی رنج‌ها پس از انقضا یا بسته شدن بازار انجام می‌شود تا از تداخل جلوگیری شود.
-// منطق فایل Settings.mqh: این فایل هیچ کدی اجرایی ندارد و فقط enums و گروه‌های input را تعریف می‌کند تا کاربر بتواند پارامترها را تنظیم کند. enums برای حالت‌های مختلف (مانند PLACEMENT_MODE برای تعیین افست شکست، SL_MODE برای SL، و TRAILING_MODE برای تریلینگ) استفاده می‌شوند. گروه‌های input شامل تنظیمات عمومی (ریسک، دیباگ، تایید قیمت)، فیلتر ایچیموکو (برای جلوگیری از معاملات خلاف روند)، نمایشگر چارت (برای نشان دادن وضعیت روند)، و تنظیمات چهار رنج جداگانه (هر رنج می‌تواند تایم‌فریم، ساعات، حداقل/حداکثر ارتفاع، دوره‌های ATR، ضرایب، نسبت R:R، درصد خروج پله‌ای، ساعت پاکسازی و رنگ داشته باشد). این ساختار اجازه می‌دهد اکسپرت برای بازارهای مختلف (مانند فارکس یا شاخص‌ها) سفارشی‌سازی شود و استراتژی شکست رنج را با فیلتر روند ترکیب کند تا سیگنال‌های معتبرتری تولید شود. فایل توسط سایر فایل‌ها include می‌شود تا به inputs دسترسی داشته باشند.
+// استراتژی کلی اکسپرت: Elemento یک سیستم معاملاتی مبتنی بر شکست رنج (Breakout Range) است که بر اساس زمان‌های مشخص (رنج‌های زمانی) عمل می‌کند. این اکسپرت تا چهار رنج زمانی مختلف را تعریف می‌کند، هر رنج را بر اساس ارتفاع قیمت (High/Low) در بازه زمانی تعیین‌شده شناسایی می‌کند، سپس منتظر شکست (Breakout) سقف یا کف رنج با افست (Offset) مبتنی بر ATR یا درصد ارتفاع رنج می‌ماند. پس از شکست، با تأیید اختیاری قیمت (کندل تایید) و فیلتر روند ایچیموکو، معامله خرید یا فروش باز می‌کند. مدیریت معامله شامل استاپ لاس (SL) مبتنی بر استراتژی جایگذاری (مقابل رنج یا سطح شکست) به علاوه تنظیم ATR یا درصد (برای پوشش کامل رنج و جلوگیری از زیان زودرس)، تیک پروفیت (TP) بر اساس نسبت R:R، خروج پله‌ای (Partial Close) در رسیدن به نسبت مشخص سود به ریسک، و تریلینگ استاپ (Trailing Stop) برای حفظ سود است. پاکسازی رنج‌ها پس از انقضا یا بسته شدن بازار انجام می‌شود تا از تداخل جلوگیری شود.
+// منطق فایل Settings.mqh: این فایل هیچ کدی اجرایی ندارد و فقط enums و گروه‌های input را تعریف می‌کند تا کاربر بتواند پارامترها را تنظیم کند. enums برای حالت‌های مختلف (مانند PLACEMENT_MODE برای تعیین افست شکست، SL_STRATEGY برای استراتژی جایگذاری SL، SL_CALC_MODE برای محاسبه بافر SL، TRAILING_MODE برای تریلینگ) استفاده می‌شوند. گروه‌های input شامل تنظیمات عمومی (ریسک، دیباگ، تایید قیمت)، فیلتر ایچیموکو (برای جلوگیری از معاملات خلاف روند)، نمایشگر چارت (برای نشان دادن وضعیت روند هر رنج به طور جداگانه)، و تنظیمات چهار رنج جداگانه (هر رنج می‌تواند تایم‌فریم، ساعات، حداقل/حداکثر ارتفاع، دوره‌های ATR، ضرایب، نسبت R:R، درصد خروج پله‌ای، ساعت پاکسازی و رنگ داشته باشد). این ساختار اجازه می‌دهد اکسپرت برای بازارهای مختلف (مانند فارکس یا شاخص‌ها) سفارشی‌سازی شود و استراتژی شکست رنج را با فیلتر روند ترکیب کند تا سیگنال‌های معتبرتری تولید شود. فایل توسط سایر فایل‌ها include می‌شود تا به inputs دسترسی داشته باشند. تغییرات جدید: اضافه شدن ENUM_SL_STRATEGY برای انتخاب استراتژی SL (مقابل یا سطح شکست) و تغییر نام ENUM_SL_MODE به ENUM_SL_CALC_MODE برای محاسبه بافر.
 
 #ifndef SETTINGS_MQH
 #define SETTINGS_MQH
@@ -20,11 +20,18 @@ enum ENUM_PLACEMENT_MODE
    PLACEMENT_PERCENT // استفاده از درصد ارتفاع رنج برای محاسبه افست ثبت سفارش (ثابت بر اساس اندازه رنج)
 };
 
-// تعریف enum برای حالت‌های استاپ لاس (تعیین فاصله SL با ATR یا درصد ارتفاع رنج برای مدیریت ریسک)
-enum ENUM_SL_MODE
+// تعریف enum برای استراتژی جایگذاری استاپ لاس (تعیین پایه SL: مقابل رنج یا سطح شکست)
+enum ENUM_SL_STRATEGY
 {
-   SL_ATR,    // استفاده از ATR برای محاسبه فاصله استاپ لاس (پویا و تطبیقی با نوسان)
-   SL_PERCENT // استفاده از درصد ارتفاع رنج برای محاسبه فاصله استاپ لاس (ثابت و ساده)
+   SL_OPPOSITE_SIDE,  // استاپ لاس در سمت مقابل رنج (قبلی: برای BUY در کف - بافر، برای SELL در سقف + بافر)
+   SL_BREAKOUT_LEVEL  // استاپ لاس در سطح شکست (جدید: برای BUY در سقف - بافر، برای SELL در کف + بافر)
+};
+
+// تعریف enum برای حالت محاسبه بافر استاپ لاس (تعیین فاصله بافر SL با ATR یا درصد ارتفاع رنج)
+enum ENUM_SL_CALC_MODE
+{
+   SL_CALC_ATR,    // استفاده از ATR برای محاسبه بافر استاپ لاس (پویا و تطبیقی با نوسان)
+   SL_CALC_PERCENT // استفاده از درصد ارتفاع رنج برای محاسبه بافر استاپ لاس (ثابت و ساده)
 };
 
 // تعریف enum برای حالت‌های تریلینگ استاپ (تعیین فاصله تریلینگ با ATR یا مقدار ثابت برای حفظ سود)
@@ -50,9 +57,9 @@ input int Inp_Ichimoku_Kijun = 26; // دوره کیجون-سن (خط کند ای
 input int Inp_Ichimoku_SenkouB = 52; // دوره سنکو اسپن B (ابر ایچیموکو برای تشخیص حمایت/مقاومت آینده)
 input int Inp_Ichimoku_FlatThreshold_Points = 90; // آستانه تشخیص ابر فلت به پوینت (برای تعیین روند خنثی اگر تفاوت سنکو A و B کمتر باشد)
 
-// گروه ورودی برای تنظیمات نمایشگر چارت (برای نمایش بصری وضعیت روند روی چارت به کاربر)
+// گروه ورودی برای تنظیمات نمایشگر چارت (برای نمایش بصری وضعیت روند هر رنج به طور جداگانه روی چارت به کاربر)
 input group "تنظیمات نمایشگر چارت"
-input bool Inp_Visual_ShowTrendStatus = true; // فعال کردن نمایش وضعیت روند (روی چارت برای نظارت بصری)
+input bool Inp_Visual_ShowTrendStatus = true; // فعال کردن نمایش وضعیت روند (روی چارت برای نظارت بصری هر رنج)
 input int Inp_Visual_FontSize = 12; // اندازه فونت نمایشگر (برای خوانایی بهتر)
 input color Inp_Visual_FontColor_Buy = clrGreen; // رنگ متن برای روند BUY (سبز برای مثبت)
 input color Inp_Visual_FontColor_Sell = clrRed; // رنگ متن برای روند SELL (قرمز برای منفی)
@@ -74,9 +81,10 @@ input int InpRange1_MaxRangePoints = 1500; // حداکثر ارتفاع رنج 1
 input ENUM_PLACEMENT_MODE InpRange1_Placement_Mode = PLACEMENT_ATR; // حالت ثبت سفارش رنج 1 (افست شکست)
 input int InpRange1_ATR_Period = 122; // دوره ATR برای ثبت سفارش رنج 1 (برای محاسبه افست پویا)
 input double InpRange1_ATR_Multiplier = 2.3; // ضریب ATR برای ثبت سفارش رنج 1 (برای تنظیم حساسیت افست)
-input ENUM_SL_MODE InpRange1_SL_Mode = SL_ATR; // حالت استاپ لاس رنج 1
-input int InpRange1_SL_ATR_Period = 62; // دوره ATR برای استاپ لاس رنج 1
-input double InpRange1_SL_ATR_Multiplier = 1.3; // ضریب ATR برای استاپ لاس رنج 1
+input ENUM_SL_STRATEGY InpRange1_SL_Strategy = SL_OPPOSITE_SIDE; // استراتژی جایگذاری استاپ لاس رنج 1 (مقابل یا سطح شکست)
+input ENUM_SL_CALC_MODE InpRange1_SL_Calc_Mode = SL_CALC_ATR; // حالت محاسبه بافر استاپ لاس رنج 1
+input int InpRange1_SL_ATR_Period = 62; // دوره ATR برای بافر استاپ لاس رنج 1
+input double InpRange1_SL_ATR_Multiplier = 1.3; // ضریب ATR برای بافر استاپ لاس رنج 1
 input ENUM_TRAILING_MODE InpRange1_Trailing_Mode = TRAILING_ATR; // حالت تریلینگ استاپ رنج 1
 input int InpRange1_Trailing_ATR_Period = 43; // دوره ATR برای تریلینگ رنج 1
 input double InpRange1_Trailing_ATR_Multiplier = 1.4; // ضریب ATR برای تریلینگ رنج 1
@@ -99,9 +107,10 @@ input int InpRange2_MaxRangePoints = 3500; // حداکثر ارتفاع رنج 2
 input ENUM_PLACEMENT_MODE InpRange2_Placement_Mode = PLACEMENT_ATR; // حالت ثبت سفارش رنج 2
 input int InpRange2_ATR_Period = 27; // دوره ATR برای ثبت سفارش رنج 2
 input double InpRange2_ATR_Multiplier = 2.8; // ضریب ATR برای ثبت سفارش رنج 2
-input ENUM_SL_MODE InpRange2_SL_Mode = SL_ATR; // حالت استاپ لاس رنج 2
-input int InpRange2_SL_ATR_Period = 86; // دوره ATR برای استاپ لاس رنج 2
-input double InpRange2_SL_ATR_Multiplier = 1.56; // ضریب ATR برای استاپ لاس رنج 2
+input ENUM_SL_STRATEGY InpRange2_SL_Strategy = SL_OPPOSITE_SIDE; // استراتژی جایگذاری استاپ لاس رنج 2
+input ENUM_SL_CALC_MODE InpRange2_SL_Calc_Mode = SL_CALC_ATR; // حالت محاسبه بافر استاپ لاس رنج 2
+input int InpRange2_SL_ATR_Period = 86; // دوره ATR برای بافر استاپ لاس رنج 2
+input double InpRange2_SL_ATR_Multiplier = 1.56; // ضریب ATR برای بافر استاپ لاس رنج 2
 input ENUM_TRAILING_MODE InpRange2_Trailing_Mode = TRAILING_ATR; // حالت تریلینگ استاپ رنج 2
 input int InpRange2_Trailing_ATR_Period = 101; // دوره ATR برای تریلینگ رنج 2
 input double InpRange2_Trailing_ATR_Multiplier = 1.58; // ضریب ATR برای تریلینگ رنج 2
@@ -124,9 +133,10 @@ input int InpRange3_MaxRangePoints = 2110; // حداکثر ارتفاع رنج 3
 input ENUM_PLACEMENT_MODE InpRange3_Placement_Mode = PLACEMENT_ATR; // حالت ثبت سفارش رنج 3
 input int InpRange3_ATR_Period = 14; // دوره ATR برای ثبت سفارش رنج 3
 input double InpRange3_ATR_Multiplier = 1.2; // ضریب ATR برای ثبت سفارش رنج 3
-input ENUM_SL_MODE InpRange3_SL_Mode = SL_ATR; // حالت استاپ لاس رنج 3
-input int InpRange3_SL_ATR_Period = 14; // دوره ATR برای استاپ لاس رنج 3
-input double InpRange3_SL_ATR_Multiplier = 1.5; // ضریب ATR برای استاپ لاس رنج 3
+input ENUM_SL_STRATEGY InpRange3_SL_Strategy = SL_OPPOSITE_SIDE; // استراتژی جایگذاری استاپ لاس رنج 3
+input ENUM_SL_CALC_MODE InpRange3_SL_Calc_Mode = SL_CALC_ATR; // حالت محاسبه بافر استاپ لاس رنج 3
+input int InpRange3_SL_ATR_Period = 14; // دوره ATR برای بافر استاپ لاس رنج 3
+input double InpRange3_SL_ATR_Multiplier = 1.5; // ضریب ATR برای بافر استاپ لاس رنج 3
 input ENUM_TRAILING_MODE InpRange3_Trailing_Mode = TRAILING_ATR; // حالت تریلینگ استاپ رنج 3
 input int InpRange3_Trailing_ATR_Period = 14; // دوره ATR برای تریلینگ رنج 3
 input double InpRange3_Trailing_ATR_Multiplier = 1.0; // ضریب ATR برای تریلینگ رنج 3
@@ -149,9 +159,10 @@ input int InpRange4_MaxRangePoints = 500; // حداکثر ارتفاع رنج 4 
 input ENUM_PLACEMENT_MODE InpRange4_Placement_Mode = PLACEMENT_ATR; // حالت ثبت سفارش رنج 4
 input int InpRange4_ATR_Period = 14; // دوره ATR برای ثبت سفارش رنج 4
 input double InpRange4_ATR_Multiplier = 1.2; // ضریب ATR برای ثبت سفارش رنج 4
-input ENUM_SL_MODE InpRange4_SL_Mode = SL_ATR; // حالت استاپ لاس رنج 4
-input int InpRange4_SL_ATR_Period = 14; // دوره ATR برای استاپ لاس رنج 4
-input double InpRange4_SL_ATR_Multiplier = 1.5; // ضریب ATR برای استاپ لاس رنج 4
+input ENUM_SL_STRATEGY InpRange4_SL_Strategy = SL_OPPOSITE_SIDE; // استراتژی جایگذاری استاپ لاس رنج 4
+input ENUM_SL_CALC_MODE InpRange4_SL_Calc_Mode = SL_CALC_ATR; // حالت محاسبه بافر استاپ لاس رنج 4
+input int InpRange4_SL_ATR_Period = 14; // دوره ATR برای بافر استاپ لاس رنج 4
+input double InpRange4_SL_ATR_Multiplier = 1.5; // ضریب ATR برای بافر استاپ لاس رنج 4
 input ENUM_TRAILING_MODE InpRange4_Trailing_Mode = TRAILING_ATR; // حالت تریلینگ استاپ رنج 4
 input int InpRange4_Trailing_ATR_Period = 14; // دوره ATR برای تریلینگ رنج 4
 input double InpRange4_Trailing_ATR_Multiplier = 1.0; // ضریب ATR برای تریلینگ رنج 4
@@ -162,7 +173,6 @@ input color InpRange4_Color = clrYellow; // رنگ مستطیل رنج 4
 
 #endif
 ```
-
 ```mql5
 //+------------------------------------------------------------------+
 //|                                                       Elemento.mq5 |
@@ -171,11 +181,11 @@ input color InpRange4_Color = clrYellow; // رنگ مستطیل رنج 4
 //+------------------------------------------------------------------+
 // این فایل اصلی اکسپرت Elemento است و نقطه ورود برنامه (OnInit, OnDeinit, OnTick, OnTimer) را مدیریت می‌کند.
 // استراتژی کلی اکسپرت: Elemento بر اساس استراتژی شکست رنج عمل می‌کند که رنج‌های زمانی را شناسایی می‌کند، منتظر شکست با افست می‌ماند، با تایید اختیاری قیمت و فیلتر ایچیموکو تأیید می‌کند، معامله باز می‌کند و سپس با خروج پله‌ای و تریلینگ مدیریت می‌کند. این استراتژی برای بازارهای رنجی مانند سشن آسیا مناسب است و با فیلتر روند از معاملات خلاف جهت جلوگیری می‌کند تا ریسک کاهش یابد. اکسپرت از چهار رنج همزمان پشتیبانی می‌کند تا پوشش کامل بازار را فراهم کند.
-// منطق فایل Elemento.mq5: این فایل هماهنگ‌کننده اصلی است. در OnInit اطلاعات نماد را کش می‌کند، ورودی‌ها را ولید می‌کند، چهار نمونه CRange را مقداردهی می‌کند، هندل‌های ATR را ایجاد می‌کند، فیلتر روند و مدیر نمایش را راه‌اندازی می‌کند. در OnDeinit تمام منابع را آزاد و پاکسازی سخت انجام می‌دهد. در OnTick کندل‌های جدید را تشخیص می‌دهد، رنج‌ها را به‌روزرسانی می‌کند، وضعیت روند را نمایش می‌دهد و در صورت بسته بودن بازار پاکسازی می‌کند. در OnTimer (هر ۶۰ ثانیه) معاملات فعال را مدیریت می‌کند تا بار OnTick کاهش یابد. متغیرهای جهانی مانند g_ranges برای نگهداری رنج‌ها، g_lastBarTime برای تشخیص کندل جدید، و g_trendFilter برای فیلتر روند استفاده می‌شوند. این فایل سایر فایل‌ها را include می‌کند تا استراتژی کامل شود.
+// منطق فایل Elemento.mq5: این فایل هماهنگ‌کننده اصلی است. در OnInit اطلاعات نماد را کش می‌کند، ورودی‌ها را ولید می‌کند، چهار نمونه CRange را مقداردهی می‌کند، هندل‌های ATR را ایجاد می‌کند، فیلتر روند و مدیر نمایش را راه‌اندازی می‌کند. در OnDeinit تمام منابع را آزاد و پاکسازی سخت انجام می‌دهد. در OnTick کندل‌های جدید را تشخیص می‌دهد، رنج‌ها را به‌روزرسانی می‌کند، وضعیت روند هر رنج را به طور جداگانه نمایش می‌دهد و در صورت بسته بودن بازار پاکسازی می‌کند. در OnTimer (هر ۶۰ ثانیه) معاملات فعال را مدیریت می‌کند تا بار OnTick کاهش یابد. متغیرهای جهانی مانند g_ranges برای نگهداری رنج‌ها، g_lastBarTime برای تشخیص کندل جدید، و g_trendFilter برای فیلتر روند استفاده می‌شوند. تغییرات جدید: آپدیت نمایشگر برای هر رنج جداگانه بر اساس کندل جدید در تایم‌فریم فیلتر آن رنج. این فایل سایر فایل‌ها را include می‌کند تا استراتژی کامل شود.
 
 #property copyright "Copyright 2025, Hipoalgorithm Team"
 #property link      "https://hipoalgorithm.com"
-#property version   "1.80" // ورژن آپدیت شده برای اعمال تغییرات جدید (اصلاح کش ATR، نمایشگر روند، مقاوم‌سازی Risk Manager)
+#property version   "1.90" // ورژن آپدیت شده برای اعمال تغییرات جدید (اصلاح SL strategy، رفع باگ فیلتر، نمایشگر چندرنج)
 #property strict
 
 #include "Settings.mqh"
@@ -205,14 +215,14 @@ bool g_isTester = false;
 // فیلتر روند جهانی (نمونه‌ای از CTrendFilter برای استفاده مشترک در تمام رنج‌ها و تعیین جهت روند)
 CTrendFilter g_trendFilter;
 
-// مدیر نمایش جهانی (نمونه‌ای از CVisualManager برای نمایش بصری وضعیت روند روی چارت)
+// مدیر نمایش جهانی (نمونه‌ای از CVisualManager برای نمایش بصری وضعیت روند هر رنج روی چارت)
 CVisualManager g_visualManager;
 
 // تابع شروع اکسپرت (OnInit): مقداردهی اولیه، چک ولیدیشن و راه‌اندازی تایمر
 int OnInit()
 {
    g_isTester = MQLInfoInteger(MQL_TESTER); // تشخیص حالت تستر برای تنظیم رفتار خاص
-   if(InpDebugMode) Print("شروع مقداردهی اکسپرت Elemento نسخه 1.80...");
+   if(InpDebugMode) Print("شروع مقداردهی اکسپرت Elemento نسخه 1.90...");
 
    // کش اطلاعات سیمبل (نماد) برای استفاده در محاسبه ریسک، حجم و فاصله‌ها
    g_tickValue = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);
@@ -273,7 +283,12 @@ int OnInit()
          return(INIT_FAILED);
       }
 
-      // فراخوانی Init برای هر رنج با پارامترهای مربوطه (مقداردهی کامل رنج)
+      ENUM_SL_STRATEGY slStrategy = i == 0 ? InpRange1_SL_Strategy : i == 1 ? InpRange2_SL_Strategy : i == 2 ? InpRange3_SL_Strategy : InpRange4_SL_Strategy;
+      ENUM_SL_CALC_MODE slCalcMode = i == 0 ? InpRange1_SL_Calc_Mode : i == 1 ? InpRange2_SL_Calc_Mode : i == 2 ? InpRange3_SL_Calc_Mode : InpRange4_SL_Calc_Mode;
+      int slAtrPeriod = i == 0 ? InpRange1_SL_ATR_Period : i == 1 ? InpRange2_SL_ATR_Period : i == 2 ? InpRange3_SL_ATR_Period : InpRange4_SL_ATR_Period;
+      double slAtrMultiplier = i == 0 ? InpRange1_SL_ATR_Multiplier : i == 1 ? InpRange2_SL_ATR_Multiplier : i == 2 ? InpRange3_SL_ATR_Multiplier : InpRange4_SL_ATR_Multiplier;
+
+      // فراخوانی Init برای هر رنج با پارامترهای مربوطه (مقداردهی کامل رنج، شامل SL strategy جدید)
       if(!g_ranges[i].Init(
          i + 1, magic, timeframe, startHour, startMinute, endHour, endMinute,
          i == 0 ? InpRange1_MinRangePoints : i == 1 ? InpRange2_MinRangePoints : i == 2 ? InpRange3_MinRangePoints : InpRange4_MinRangePoints,
@@ -281,9 +296,7 @@ int OnInit()
          i == 0 ? InpRange1_Placement_Mode : i == 1 ? InpRange2_Placement_Mode : i == 2 ? InpRange3_Placement_Mode : InpRange4_Placement_Mode,
          atrPeriod,
          i == 0 ? InpRange1_ATR_Multiplier : i == 1 ? InpRange2_ATR_Multiplier : i == 2 ? InpRange3_ATR_Multiplier : InpRange4_ATR_Multiplier,
-         i == 0 ? InpRange1_SL_Mode : i == 1 ? InpRange2_SL_Mode : i == 2 ? InpRange3_SL_Mode : InpRange4_SL_Mode,
-         i == 0 ? InpRange1_SL_ATR_Period : i == 1 ? InpRange2_SL_ATR_Period : i == 2 ? InpRange3_SL_ATR_Period : InpRange4_SL_ATR_Period,
-         i == 0 ? InpRange1_SL_ATR_Multiplier : i == 1 ? InpRange2_SL_ATR_Multiplier : i == 2 ? InpRange3_SL_ATR_Multiplier : InpRange4_SL_ATR_Multiplier,
+         slStrategy, slCalcMode, slAtrPeriod, slAtrMultiplier,
          i == 0 ? InpRange1_Trailing_Mode : i == 1 ? InpRange2_Trailing_Mode : i == 2 ? InpRange3_Trailing_Mode : InpRange4_Trailing_Mode,
          i == 0 ? InpRange1_Trailing_ATR_Period : i == 1 ? InpRange2_Trailing_ATR_Period : i == 2 ? InpRange3_Trailing_ATR_Period : InpRange4_Trailing_ATR_Period,
          i == 0 ? InpRange1_Trailing_ATR_Multiplier : i == 1 ? InpRange2_Trailing_ATR_Multiplier : i == 2 ? InpRange3_Trailing_ATR_Multiplier : InpRange4_Trailing_ATR_Multiplier,
@@ -306,7 +319,7 @@ int OnInit()
       Print("خطا در مقداردهی فیلتر روند.");
       return(INIT_FAILED);
    }
-   // مقداردهی مدیر نمایش جهانی (برای نمایش وضعیت روند روی چارت)
+   // مقداردهی مدیر نمایش جهانی (برای نمایش وضعیت روند هر رنج روی چارت)
    if(!g_visualManager.Init())
    {
       Print("خطا در مقداردهی مدیر نمایش.");
@@ -322,14 +335,14 @@ int OnInit()
    // راه‌اندازی تایمر برای مدیریت معاملات هر ۶۰ ثانیه (بهینه‌سازی عملکرد OnTick)
    EventSetTimer(60);
 
-   Print("مقداردهی اکسپرت Elemento نسخه 1.80 با موفقیت انجام شد.");
+   Print("مقداردهی اکسپرت Elemento نسخه 1.90 با موفقیت انجام شد.");
    return(INIT_SUCCEEDED);
 }
 
 // تابع پایان اکسپرت (OnDeinit): پاکسازی منابع و پاکسازی سخت تمام رنج‌ها
 void OnDeinit(const int reason)
 {
-   if(InpDebugMode) Print("دفع مقداردهی اکسپرت Elemento نسخه 1.80. دلیل: ", reason);
+   if(InpDebugMode) Print("دفع مقداردهی اکسپرت Elemento نسخه 1.90. دلیل: ", reason);
 
    // پاکسازی سخت تمام رنج‌ها برای بستن معاملات باقی‌مانده و ریست (در صورت کرش یا خروج)
    for(int i = 0; i < 4; i++)
@@ -397,6 +410,7 @@ void OnTick()
    }
 
    bool newBarDetected = false; // فلگ برای تشخیص کندل جدید و به‌روزرسانی نمایش
+   string trendDisplayText = ""; // متن کامل نمایش وضعیت روند هر رنج
    for(int i = 0; i < 4; i++)
    {
       bool enabled = i == 0 ? InpRange1_Enabled : i == 1 ? InpRange2_Enabled : i == 2 ? InpRange3_Enabled : InpRange4_Enabled;
@@ -419,6 +433,19 @@ void OnTick()
          newBarDetected = true;
       }
 
+      // چک کندل جدید در تایم‌فریم فیلتر برای آپدیت نمایش روند آن رنج
+      ENUM_TIMEFRAMES trendTf = g_ranges[i].GetTrendFilterTimeframe();
+      datetime currentTrendBarTime = iTime(_Symbol, trendTf, 0);
+      if(currentTrendBarTime > g_ranges[i].GetLastFilterBarTime())
+      {
+         ENUM_TREND_DIRECTION trend = g_trendFilter.GetTrendDirection(trendTf);
+         string trendStr = trend == TREND_BUY ? "Bullish" : trend == TREND_SELL ? "Bearish" : "Neutral";
+         string tfStr = EnumToString(trendTf);
+         trendDisplayText += "Range " + IntegerToString(i + 1) + " (Filter " + tfStr + "): " + trendStr + "\n";
+         g_ranges[i].UpdateLastFilterBarTime(currentTrendBarTime); // آپدیت زمان در رنج
+         if(InpDebugMode) Print("آپدیت روند رنج ", i + 1, ": ", trendStr);
+      }
+
       // مدیریت معاملات به OnTimer منتقل شده، اینجا فقط چک حالت برای اطمینان
       if(enabled && g_ranges[i].GetCurrentState() == MANAGING_TRADE)
       {
@@ -426,38 +453,10 @@ void OnTick()
       }
    }
 
-   // اگر کندل جدید تشخیص داده شده، وضعیت روند را به‌روزرسانی کن (از اولین رنج فعال استفاده شود)
-   if(newBarDetected)
+   // آپدیت نمایشگر با متن کامل وضعیت روند هر رنج (اگر نمایش فعال باشد)
+   if(Inp_Visual_ShowTrendStatus && trendDisplayText != "")
    {
-      ENUM_TIMEFRAMES trendDisplayTimeframe = PERIOD_CURRENT;
-      bool anyRangeActive = false;
-
-      // پیدا کردن اولین رنج فعال برای نمایش روند
-      for(int i = 0; i < 4; i++)
-      {
-         bool enabled = i == 0 ? InpRange1_Enabled : i == 1 ? InpRange2_Enabled : i == 2 ? InpRange3_Enabled : InpRange4_Enabled;
-         if(enabled)
-         {
-            trendDisplayTimeframe = g_ranges[i].GetTrendFilterTimeframe();
-            anyRangeActive = true;
-            break; // پیدا شد، از حلقه خارج شو
-         }
-      }
-
-      // اگر حداقل یک رنج فعال بود، نمایشگر رو آپدیت کن
-      if(anyRangeActive)
-      {
-         ENUM_TREND_DIRECTION globalTrend = g_trendFilter.GetTrendDirection(trendDisplayTimeframe);
-         string trendText;
-         color trendColor;
-         switch(globalTrend)
-         {
-            case TREND_BUY: trendText = "TREND BUY"; trendColor = Inp_Visual_FontColor_Buy; break;
-            case TREND_SELL: trendText = "TREND SELL"; trendColor = Inp_Visual_FontColor_Sell; break;
-            default: trendText = "TREND NEUTRAL"; trendColor = Inp_Visual_FontColor_Neutral; break;
-         }
-         g_visualManager.UpdateTrendStatus(trendText, trendColor); // به‌روزرسانی نمایش بصری روند
-      }
+      g_visualManager.UpdateTrendStatus(trendDisplayText);
    }
 }
 
@@ -531,7 +530,6 @@ bool IsMarketClosed()
    return true;
 }
 ```
-
 ```mql5
 //+------------------------------------------------------------------+
 //|                                                         CRange.mqh |
@@ -539,8 +537,8 @@ bool IsMarketClosed()
 //|                       https://hipoalgorithm.com                  |
 //+------------------------------------------------------------------+
 // این فایل کلاس CRange را تعریف می‌کند که هسته استراتژی شکست رنج را مدیریت می‌کند.
-// استراتژی کلی اکسپرت: هر رنج زمانی (مانند سشن آسیا) را شناسایی می‌کند، سقف و کف آن را تعیین می‌کند، اگر ارتفاع معتبر باشد، با افست (بر اساس ATR یا درصد) مسلح می‌شود، منتظر کندل بریک (شکست) می‌ماند، به صورت اختیاری قیمت را تأیید می‌کند (اگر Inp_PriceConfirmation_Enabled فعال باشد)، فیلتر روند را چک می‌کند، معامله باز می‌کند، سپس معامله را با خروج پله‌ای (هنگام رسیدن به RR)، انتقال SL به ورود، و تریلینگ مدیریت می‌کند. این استراتژی برای بازارهای رنجی با شکست قوی مناسب است و با فیلتر ایچیموکو ریسک خلاف روند را کاهش می‌دهد.
-// منطق فایل CRange.mqh: این کلاس برای هر رنج جداگانه عمل می‌کند. ماشین حالت (ENUM_RANGE_STATE) جریان را کنترل می‌کند: از انتظار رنج جدید شروع می‌شود، رنج را شناسایی و ولید می‌کند، مسلح می‌کند، منتظر بریک و تأییدها می‌ماند، معامله اجرا می‌کند و مدیریت می‌کند. پاکسازی نرم برای ریست روزانه و سخت برای بستن معاملات در تعطیلات استفاده می‌شود. کش ATR برای بهینه‌سازی محاسبات، و استفاده از g_trendFilter برای فیلتر. تغییرات شامل چک اضافی برای cleanupTime، بهینه جستجو تیکت، خروج پله‌ای بهبودیافته، تریلینگ با حداقل تغییر، SL با بافر minStop و بر اساس نقطه مقابل رنج (برای BUY: کف رنج - adjustment، برای SELL: سقف رنج + adjustment)، بررسی فیلتر روند در هر کندل جدید تایم‌فریم فیلتر، و مدیریت اختیاری تایید قیمت (اگر خاموش، مستقیم از بریک به فیلتر یا ورود). همچنین چک برای عدم وجود کندل در بازه رنج اضافه شده تا از خطاهای Edge Case جلوگیری شود. اصلاح کش ATR برای ثابت بودن در ورود و پویا در تریلینگ، با ریست کش در پاکسازی‌ها.
+// استراتژی کلی اکسپرت: هر رنج زمانی (مانند سشن آسیا) را شناسایی می‌کند، سقف و کف آن را تعیین می‌کند، اگر ارتفاع معتبر باشد، با افست (بر اساس ATR یا درصد) مسلح می‌شود، منتظر کندل بریک (شکست) می‌ماند، به صورت اختیاری قیمت را تأیید می‌کند (اگر Inp_PriceConfirmation_Enabled فعال باشد)، فیلتر روند را به طور مستقل و در لحظه چک می‌کند، معامله باز می‌کند، سپس معامله را با خروج پله‌ای (هنگام رسیدن به RR)، انتقال SL به ورود، و تریلینگ مدیریت می‌کند. این استراتژی برای بازارهای رنجی با شکست قوی مناسب است و با فیلتر ایچیموکو ریسک خلاف روند را کاهش می‌دهد.
+// منطق فایل CRange.mqh: این کلاس برای هر رنج جداگانه عمل می‌کند. ماشین حالت (ENUM_RANGE_STATE) جریان را کنترل می‌کند: از انتظار رنج جدید شروع می‌شود، رنج را شناسایی و ولید می‌کند، مسلح می‌کند، منتظر بریک و تأییدها می‌ماند، معامله اجرا می‌کند و مدیریت می‌کند. پاکسازی نرم برای ریست روزانه و سخت برای بستن معاملات در تعطیلات استفاده می‌شود. کش ATR برای بهینه‌سازی محاسبات، و فراخوانی مستقل g_trendFilter برای فیلتر دینامیک. تغییرات شامل: اعمال ENUM_SL_STRATEGY در ExecuteTrade برای محاسبه SL (base point بر اساس strategy)، رفع باگ فیلتر با فراخوانی مستقل GetTrendDirection در لحظه، اضافه گتر UpdateLastFilterBarTime برای هماهنگی نمایش، چک اضافی برای cleanupTime، بهینه جستجو تیکت، خروج پله‌ای بهبودیافته، تریلینگ با حداقل تغییر، SL با بافر minStop، بررسی فیلتر روند در هر کندل جدید تایم‌فریم فیلتر، و مدیریت اختیاری تایید قیمت (اگر خاموش، مستقیم از بریک به فیلتر یا ورود). همچنین چک برای عدم وجود کندل در بازه رنج اضافه شده تا از خطاهای Edge Case جلوگیری شود. اصلاح کش ATR برای ثابت بودن در ورود و پویا در تریلینگ، با ریست کش در پاکسازی‌ها.
 
 #ifndef CRANGE_MQH
 #define CRANGE_MQH
@@ -559,8 +557,8 @@ enum ENUM_RANGE_STATE
    ARMED_AND_WAITING,                      // رنج مسلح شده با افست و انتظار برای بریک (رسم خطوط خرید/فروش)
    WAITING_FOR_PRICE_CONFIRMATION_BUY,     // انتظار تأیید قیمت پس از بریک خرید (چک کلوز بالای سطح بریک)
    WAITING_FOR_PRICE_CONFIRMATION_SELL,    // انتظار تأیید قیمت پس از بریک فروش (چک کلوز پایین سطح بریک)
-   WAITING_FOR_FILTER_CONFIRMATION_BUY,    // انتظار تأیید فیلتر روند برای خرید (چک ایچیموکو)
-   WAITING_FOR_FILTER_CONFIRMATION_SELL,   // انتظار تأیید فیلتر روند برای فروش (چک ایچیموکو)
+   WAITING_FOR_FILTER_CONFIRMATION_BUY,    // انتظار تأیید فیلتر روند برای خرید (چک ایچیموکو مستقل)
+   WAITING_FOR_FILTER_CONFIRMATION_SELL,   // انتظار تأیید فیلتر روند برای فروش (چک ایچیموکو مستقل)
    EXECUTE_TRADE_BUY,                      // اجرای معامله خرید (محاسبه SL/TP/حجم و ارسال سفارش)
    EXECUTE_TRADE_SELL,                     // اجرای معامله فروش (محاسبه SL/TP/حجم و ارسال سفارش)
    MANAGING_TRADE,                         // مدیریت معامله فعال (خروج پله‌ای، بریک‌اون، تریلینگ)
@@ -580,9 +578,10 @@ private:
    ENUM_PLACEMENT_MODE m_placementMode;    // حالت افست شکست (ATR یا درصد)
    int m_atrPeriod;                        // دوره ATR برای افست
    double m_atrMultiplier;                 // ضریب ATR برای افست
-   ENUM_SL_MODE m_slMode;                  // حالت SL (ATR یا درصد)
-   int m_slAtrPeriod;                      // دوره ATR برای SL
-   double m_slAtrMultiplier;               // ضریب ATR برای SL
+   ENUM_SL_STRATEGY m_slStrategy;          // استراتژی جایگذاری SL (مقابل یا سطح شکست)
+   ENUM_SL_CALC_MODE m_slCalcMode;         // حالت محاسبه بافر SL (ATR یا درصد)
+   int m_slAtrPeriod;                      // دوره ATR برای بافر SL
+   double m_slAtrMultiplier;               // ضریب ATR برای بافر SL
    ENUM_TRAILING_MODE m_trailingMode;      // حالت تریلینگ (ATR یا ساده)
    int m_trailingAtrPeriod;                // دوره ATR برای تریلینگ
    double m_trailingAtrMultiplier;         // ضریب ATR برای تریلینگ
@@ -611,16 +610,16 @@ private:
    string m_sellLineName;                  // نام خط گرافیکی فروش
    datetime m_lastEndTime;                 // زمان پایان آخرین رنج برای جلوگیری از تکرار
    bool m_lastInvalid;                     // فلگ نامعتبر بودن آخرین رنج برای skip
-   datetime m_lastFilterBarTime;           // زمان آخرین کندل در تایم‌فریم فیلتر برای تشخیص کندل جدید
+   datetime m_lastFilterBarTime;           // زمان آخرین کندل در تایم‌فریم فیلتر برای تشخیص کندل جدید و آپدیت نمایش
 
 public:
    // سازنده پیش‌فرض: مقداردهی اولیه تمام متغیرها به مقادیر پیش‌فرض برای جلوگیری از خطاهای دسترسی
    CRange() : m_rangeIndex(0), m_magicNumber(0), m_timeframe(PERIOD_H1),
               m_startHour(0), m_startMinute(0), m_endHour(0), m_endMinute(0),
               m_minRangePoints(0), m_maxRangePoints(0), m_placementMode(PLACEMENT_ATR),
-              m_atrPeriod(14), m_atrMultiplier(1.2), m_slMode(SL_ATR),
-              m_slAtrPeriod(14), m_slAtrMultiplier(1.5), m_trailingMode(TRAILING_ATR),
-              m_trailingAtrPeriod(14), m_trailingAtrMultiplier(1.0),
+              m_atrPeriod(14), m_atrMultiplier(1.2), m_slStrategy(SL_OPPOSITE_SIDE),
+              m_slCalcMode(SL_CALC_ATR), m_slAtrPeriod(14), m_slAtrMultiplier(1.5),
+              m_trailingMode(TRAILING_ATR), m_trailingAtrPeriod(14), m_trailingAtrMultiplier(1.0),
               m_rrRatio(1.5), m_partialClosePercent(50.0), m_cleanupHours(5),
               m_color(clrBlue), m_rangeHigh(0), m_rangeLow(0), m_cleanupTime(0),
               m_currentState(RANGE_WAITING), m_atrHandle(INVALID_HANDLE),
@@ -637,13 +636,13 @@ public:
       int rangeIndex, long magicNumber, ENUM_TIMEFRAMES timeframe,
       int startHour, int startMinute, int endHour, int endMinute,
       int minRangePoints, int maxRangePoints, ENUM_PLACEMENT_MODE placementMode,
-      int atrPeriod, double atrMultiplier, ENUM_SL_MODE slMode,
-      int slAtrPeriod, double slAtrMultiplier, ENUM_TRAILING_MODE trailingMode,
-      int trailingAtrPeriod, double trailingAtrMultiplier, double rrRatio,
-      double partialClosePercent, int cleanupHours, color rangeColor,
+      int atrPeriod, double atrMultiplier, ENUM_SL_STRATEGY slStrategy,
+      ENUM_SL_CALC_MODE slCalcMode, int slAtrPeriod, double slAtrMultiplier,
+      ENUM_TRAILING_MODE trailingMode, int trailingAtrPeriod, double trailingAtrMultiplier,
+      double rrRatio, double partialClosePercent, int cleanupHours, color rangeColor,
       ENUM_TIMEFRAMES trendFilterTimeframe, int atrHandle)
    {
-      if(InpDebugMode) Print("مقداردهی رنج ", rangeIndex, " نسخه 1.80...");
+      if(InpDebugMode) Print("مقداردهی رنج ", rangeIndex, " نسخه 1.90...");
       m_rangeIndex = rangeIndex;
       m_magicNumber = magicNumber;
       m_timeframe = timeframe;
@@ -656,7 +655,8 @@ public:
       m_placementMode = placementMode;
       m_atrPeriod = atrPeriod;
       m_atrMultiplier = atrMultiplier;
-      m_slMode = slMode;
+      m_slStrategy = slStrategy;
+      m_slCalcMode = slCalcMode;
       m_slAtrPeriod = slAtrPeriod;
       m_slAtrMultiplier = slAtrMultiplier;
       m_trailingMode = trailingMode;
@@ -676,7 +676,7 @@ public:
       }
 
       // ایجاد هندل ATR برای SL اگر حالت مربوطه فعال باشد
-      if(m_slMode == SL_ATR)
+      if(m_slCalcMode == SL_CALC_ATR)
       {
          m_slAtrHandle = iATR(_Symbol, m_timeframe, m_slAtrPeriod);
          if(m_slAtrHandle == INVALID_HANDLE)
@@ -701,7 +701,7 @@ public:
       m_rangeObjectName = "Range_" + IntegerToString(rangeIndex) + "_" + TimeToString(TimeCurrent(), TIME_DATE|TIME_MINUTES);
       m_buyLineName = "BuyLine_" + IntegerToString(rangeIndex);
       m_sellLineName = "SellLine_" + IntegerToString(rangeIndex);
-      if(InpDebugMode) Print("رنج ", rangeIndex, " با موفقیت مقداردهی شد.");
+      if(InpDebugMode) Print("رنج ", rangeIndex, " با موفقیت مقداردهی شد (SL Strategy: ", EnumToString(slStrategy), ").");
       return true;
    }
 
@@ -760,11 +760,11 @@ public:
             break;
          case WAITING_FOR_FILTER_CONFIRMATION_BUY:
          case WAITING_FOR_FILTER_CONFIRMATION_SELL:
-            WaitForFilterConfirmation(); // چک جهت روند با ایچیموکو
+            WaitForFilterConfirmation(); // چک جهت روند با ایچیموکو مستقل و دینامیک
             break;
          case EXECUTE_TRADE_BUY:
          case EXECUTE_TRADE_SELL:
-            ExecuteTrade(); // محاسبه SL/TP/حجم و ارسال سفارش بازار
+            ExecuteTrade(); // محاسبه SL/TP/حجم بر اساس SL strategy جدید و ارسال سفارش بازار
             break;
          case RANGE_EXPIRED:
             SoftCleanup(); // ریست برای رنج بعدی
@@ -783,6 +783,8 @@ public:
    ENUM_TIMEFRAMES GetTimeframe() { return m_timeframe; }
    ENUM_TIMEFRAMES GetTrendFilterTimeframe() { return m_trendFilterTimeframe; }
    ENUM_RANGE_STATE GetCurrentState() { return m_currentState; }
+   datetime GetLastFilterBarTime() { return m_lastFilterBarTime; }
+   void UpdateLastFilterBarTime(datetime time) { m_lastFilterBarTime = time; } // آپدیت زمان کندل فیلتر برای هماهنگی نمایش
 
    // پاکسازی سخت: بستن معامله فعال و ریست کامل متغیرها برای شرایط اضطراری
    void HardCleanup()
@@ -812,6 +814,7 @@ public:
       ObjectDelete(0, m_rangeObjectName);
       m_lastEndTime = 0;
       m_lastInvalid = false;
+      m_lastFilterBarTime = 0;
 
       m_currentState = RANGE_WAITING;
       if(InpDebugMode) Print("رنج ", m_rangeIndex, " کاملاً پاکسازی شد (سخت).");
@@ -1144,7 +1147,7 @@ private:
       }
    }
 
-   // تأیید فیلتر روند: چک جهت روند فقط در کندل جدید تایم‌فریم فیلتر
+   // تأیید فیلتر روند: چک جهت روند فقط در کندل جدید تایم‌فریم فیلتر، مستقل و دینامیک
    void WaitForFilterConfirmation()
    {
       // گرفتن زمان کندل فعلی در تایم‌فریم فیلتر
@@ -1162,11 +1165,11 @@ private:
          return;
       }
 
-      // کندل جدید تشخیص داده شده، به‌روزرسانی زمان و بررسی فیلتر
+      // کندل جدید تشخیص داده شده، به‌روزرسانی زمان و بررسی فیلتر مستقل
       m_lastFilterBarTime = currentFilterBarTime;
 
       bool isBuy = (m_currentState == WAITING_FOR_FILTER_CONFIRMATION_BUY);
-      ENUM_TREND_DIRECTION currentTrend = g_trendFilter.GetTrendDirection(m_trendFilterTimeframe);
+      ENUM_TREND_DIRECTION currentTrend = g_trendFilter.GetTrendDirection(m_trendFilterTimeframe); // فراخوانی مستقل و دینامیک
 
       bool filterPassed = !Inp_IchimokuFilter_Enabled || (isBuy && (currentTrend == TREND_BUY || currentTrend == TREND_NEUTRAL)) || (!isBuy && (currentTrend == TREND_SELL || currentTrend == TREND_NEUTRAL));
 
@@ -1199,14 +1202,14 @@ private:
       }
    }
 
-   // اجرای معامله: محاسبه SL بر اساس نقطه مقابل رنج با بافر minStop، TP، حجم و ارسال سفارش بازار
+   // اجرای معامله: محاسبه SL بر اساس SL strategy جدید (base point + بافر)، TP، حجم و ارسال سفارش بازار
    void ExecuteTrade()
    {
       bool isBuy = (m_currentState == EXECUTE_TRADE_BUY);
       double entryPrice = isBuy ? SymbolInfoDouble(_Symbol, SYMBOL_ASK) : SymbolInfoDouble(_Symbol, SYMBOL_BID);
 
       double adjustment;
-      if(m_slMode == SL_ATR)
+      if(m_slCalcMode == SL_CALC_ATR)
       {
          // محاسبه مستقیم SL ATR بدون کش برای ثابت ماندن
          double atr[];
@@ -1223,15 +1226,26 @@ private:
          adjustment = (m_rangeHigh - m_rangeLow) * m_slAtrMultiplier / 100.0;
       }
 
-      // محاسبه SL بر اساس نقطه مقابل رنج
+      // انتخاب base point بر اساس SL strategy
+      double basePoint;
+      if(m_slStrategy == SL_OPPOSITE_SIDE)
+      {
+         basePoint = isBuy ? m_rangeLow : m_rangeHigh; // مقابل رنج
+      }
+      else // SL_BREAKOUT_LEVEL
+      {
+         basePoint = isBuy ? m_rangeHigh : m_rangeLow; // سطح شکست
+      }
+
+      // محاسبه SL بر اساس base point
       double slPrice;
       if(isBuy)
       {
-         slPrice = NormalizeDouble(m_rangeLow - adjustment, _Digits); // برای BUY: کف رنج - adjustment
+         slPrice = NormalizeDouble(basePoint - adjustment, _Digits); // برای BUY: base - adjustment
       }
       else
       {
-         slPrice = NormalizeDouble(m_rangeHigh + adjustment, _Digits); // برای SELL: سقف رنج + adjustment
+         slPrice = NormalizeDouble(basePoint + adjustment, _Digits); // برای SELL: base + adjustment
       }
 
       double slDistance = MathAbs(entryPrice - slPrice);
@@ -1246,7 +1260,7 @@ private:
          return;
       }
 
-      if(InpDebugMode) Print("رنج ", m_rangeIndex, ": slDistance=", slDistance, ", slPrice=", slPrice);
+      if(InpDebugMode) Print("رنج ", m_rangeIndex, ": SL Strategy=", EnumToString(m_slStrategy), ", slDistance=", slDistance, ", slPrice=", slPrice);
 
       double tpDistance = slDistance * m_rrRatio;
       double tpPrice = isBuy ? NormalizeDouble(entryPrice + tpDistance, _Digits) : NormalizeDouble(entryPrice - tpDistance, _Digits);
@@ -1383,7 +1397,6 @@ private:
 
 #endif
 ```
-
 ```mql5
 //+------------------------------------------------------------------+
 //|                                                     TradeManager.mqh |
@@ -1392,7 +1405,7 @@ private:
 //+------------------------------------------------------------------+
 // این فایل کلاس CTradeManager را تعریف می‌کند که عملیات معاملاتی پیشرفته را مدیریت می‌کند.
 // استراتژی کلی اکسپرت: این کلاس بخشی از مدیریت معامله در استراتژی شکست رنج است، جایی که پس از باز شدن معامله، خروج پله‌ای (هنگام رسیدن به RR)، انتقال SL به ورود (برای حفظ سرمایه)، تریلینگ (برای قفل سود) و بستن کامل (در پاکسازی سخت) انجام می‌شود. این عملیات ریسک را کنترل و سود را به حداکثر می‌رساند.
-// منطق فایل TradeManager.mqh: کلاس شامل متدهای استاتیک برای بستن جزئی (PartialClose با چک حجم مجاز)، انتقال SL به بریک‌اون (MoveSLToBreakEven با نرمالایز قیمت)، تریلینگ استاپ (TrailingStop با محاسبه فاصله ATR یا ساده و چک حداقل تغییر برای جلوگیری از به‌روزرسانی‌های بیهوده)، و بستن کامل (ClosePosition). تمام متدها PositionSelectByTicket را چک می‌کنند و از CTrade برای ارسال درخواست استفاده می‌کنند. این فایل توسط CRange برای مدیریت معاملات در ManageActiveTrade فراخوانی می‌شود و هیچ وابستگی خارجی ندارد جز Trade.mqh.
+// منطق فایل TradeManager.mqh: کلاس شامل متدهای استاتیک برای بستن جزئی (PartialClose با چک حجم مجاز)، انتقال SL به بریک‌اون (MoveSLToBreakEven با نرمالایز قیمت)، تریلینگ استاپ (TrailingStop با محاسبه فاصله ATR یا ساده و چک حداقل تغییر برای جلوگیری از به‌روزرسانی‌های بیهوده)، و بستن کامل (ClosePosition). تمام متدها PositionSelectByTicket را چک می‌کنند و از CTrade برای ارسال درخواست استفاده می‌کنند. این فایل توسط CRange برای مدیریت معاملات در ManageActiveTrade فراخوانی می‌شود و هیچ وابستگی خارجی ندارد جز Trade.mqh. تغییرات: هیچ تغییری لازم نبود، اما کامنت‌ها به‌روزرسانی شد.
 
 #ifndef TRADE_MANAGER_MQH
 #define TRADE_MANAGER_MQH
@@ -1553,7 +1566,6 @@ public:
 
 #endif
 ```
-
 ```mql5
 //+------------------------------------------------------------------+
 //|                                                     RiskManager.mqh |
@@ -1562,7 +1574,7 @@ public:
 //+------------------------------------------------------------------+
 // این فایل کلاس CRiskManager را تعریف می‌کند که محاسبه ریسک و حجم را مدیریت می‌کند.
 // استراتژی کلی اکسپرت: ریسک هر معامله بر اساس درصد موجودی حساب و فاصله SL محاسبه می‌شود تا زیان محدود شود. این کلاس حجم را طوری تعیین می‌کند که زیان SL برابر درصد ریسک باشد، مستقل از نوع نماد (فارکس، شاخص، JPY).
-// منطق فایل RiskManager.mqh: متد استاتیک CalculateLotSize فاصله SL (قیمت واقعی) را می‌گیرد، ریسک به ازای هر لات را با فرمول slDistance * (g_tickValue / g_tickSize) محاسبه می‌کند (برای سازگاری با نمادهای مختلف)، حجم را بر اساس ریسک مطلوب تعیین می‌کند و به گام حجم راند می‌کند. چک‌های ولید برای جلوگیری از حجم نامعتبر اضافه شده. این فایل توسط CRange برای محاسبه حجم در ExecuteTrade فراخوانی می‌شود.
+// منطق فایل RiskManager.mqh: متد استاتیک CalculateLotSize فاصله SL (قیمت واقعی) را می‌گیرد، ریسک به ازای هر لات را با فرمول slDistance * (g_tickValue / g_tickSize) محاسبه می‌کند (برای سازگاری با نمادهای مختلف)، حجم را بر اساس ریسک مطلوب تعیین می‌کند و به گام حجم راند می‌کند. چک‌های ولید برای جلوگیری از حجم نامعتبر اضافه شده. این فایل توسط CRange برای محاسبه حجم در ExecuteTrade فراخوانی می‌شود. تغییرات: هیچ تغییری لازم نبود، اما کامنت‌ها به‌روزرسانی شد.
 
 #ifndef RISK_MANAGER_MQH
 #define RISK_MANAGER_MQH
@@ -1617,7 +1629,6 @@ public:
 
 #endif
 ```
-
 ```mql5
 //+------------------------------------------------------------------+
 //|                                                      TimeHelper.mqh |
@@ -1626,7 +1637,7 @@ public:
 //+------------------------------------------------------------------+
 // این فایل کلاس CTimeHelper را تعریف می‌کند که محاسبات زمانی را مدیریت می‌کند.
 // استراتژی کلی اکسپرت: زمان‌های رنج و پاکسازی بر اساس ساعات محلی سرور محاسبه می‌شود تا رنج‌ها دقیقاً در بازه‌های تعریف‌شده عمل کنند و پس از انقضا پاک شوند.
-// منطق فایل TimeHelper.mqh: متدهای استاتیک CalculateRangeTimes زمان شروع/پایان رنج را محاسبه می‌کند (با مدیریت رنج‌های شبانه و تنظیم بر اساس روز فعلی)، و CalculateCleanupTime زمان انقضا را بر اساس ساعت‌های پاکسازی اضافه می‌کند. این فایل توسط CRange برای تعیین زمان‌ها استفاده می‌شود و وابستگی به TimeCurrent دارد.
+// منطق فایل TimeHelper.mqh: متدهای استاتیک CalculateRangeTimes زمان شروع/پایان رنج را محاسبه می‌کند (با مدیریت رنج‌های شبانه و تنظیم بر اساس روز فعلی)، و CalculateCleanupTime زمان انقضا را بر اساس ساعت‌های پاکسازی اضافه می‌کند. این فایل توسط CRange برای تعیین زمان‌ها استفاده می‌شود و وابستگی به TimeCurrent دارد. تغییرات: هیچ تغییری لازم نبود، اما کامنت‌ها به‌روزرسانی شد.
 
 #ifndef TIME_HELPER_MQH
 #define TIME_HELPER_MQH
@@ -1683,7 +1694,6 @@ public:
 
 #endif
 ```
-
 ```mql5
 //+------------------------------------------------------------------+
 //|                                                     TrendFilter.mqh |
@@ -1692,7 +1702,7 @@ public:
 //+------------------------------------------------------------------+
 // این فایل کلاس CTrendFilter را تعریف می‌کند که فیلتر روند بر اساس ایچیموکو را مدیریت می‌کند.
 // استراتژی کلی اکسپرت: فیلتر روند برای جلوگیری از معاملات خلاف جهت استفاده می‌شود؛ اگر ابر ایچیموکو فلت (خنثی) یا هم‌جهت باشد، معامله مجاز است، иначе رد می‌شود.
-// منطق فایل TrendFilter.mqh: enum ENUM_TREND_DIRECTION برای خروجی (BUY/SELL/NEUTRAL). تابع GetTrendDirection هندل ایچیموکو را برای تایم‌فریم مشخص می‌سازد، سنکو A/B را می‌گیرد، تفاوت را چک می‌کند (اگر کمتر از آستانه، خنثی)، و جهت را تعیین می‌کند (A > B برای BUY). هندل پس از استفاده آزاد می‌شود تا از leak جلوگیری شود. Init/Deinit خالی هستند زیرا هندل پویا ساخته می‌شود. این فایل توسط CRange برای تأیید فیلتر فراخوانی می‌شود.
+// منطق فایل TrendFilter.mqh: enum ENUM_TREND_DIRECTION برای خروجی (BUY/SELL/NEUTRAL). تابع GetTrendDirection هندل ایچیموکو را برای تایم‌فریم مشخص می‌سازد، سنکو A/B را می‌گیرد، تفاوت را چک می‌کند (اگر کمتر از آستانه، خنثی)، و جهت را تعیین می‌کند (A > B برای BUY). هندل پس از استفاده آزاد می‌شود تا از leak جلوگیری شود. Init/Deinit خالی هستند زیرا هندل پویا ساخته می‌شود. این فایل توسط CRange برای تأیید فیلتر مستقل فراخوانی می‌شود. تغییرات: رفع باگ با تأکید بر فراخوانی دینامیک هر بار.
 
 #ifndef TREND_FILTER_MQH
 #define TREND_FILTER_MQH
@@ -1715,7 +1725,7 @@ public:
    // Deinit خالی (هیچ منبعی ثابت برای آزادسازی نیست)
    void Deinit() {}
 
-   // گرفتن جهت روند: ساخت پویا هندل، محاسبه ابر، تعیین جهت و آزادسازی هندل
+   // گرفتن جهت روند: ساخت پویا هندل، محاسبه ابر، تعیین جهت و آزادسازی هندل (دینامیک هر بار)
    ENUM_TREND_DIRECTION GetTrendDirection(ENUM_TIMEFRAMES timeframe)
    {
       if(!Inp_IchimokuFilter_Enabled)
@@ -1765,7 +1775,6 @@ public:
 
 #endif
 ```
-
 ```mql5
 //+------------------------------------------------------------------+
 //|                                                   VisualManager.mqh |
@@ -1773,13 +1782,13 @@ public:
 //|                       https://hipoalgorithm.com                  |
 //+------------------------------------------------------------------+
 // این فایل کلاس CVisualManager را تعریف می‌کند که نمایش بصری روی چارت را مدیریت می‌کند.
-// استراتژی کلی اکسپرت: نمایش وضعیت روند (BUY/SELL/NEUTRAL) برای کمک به کاربر در نظارت، بدون تأثیر بر منطق معاملاتی.
-// منطق فایل VisualManager.mqh: کلاس شیء LABEL را برای نمایش متن روند ایجاد می‌کند، موقعیت، فونت و رنگ را تنظیم می‌کند. تابع UpdateTrendStatus متن و رنگ را به‌روزرسانی و چارت را redraw می‌کند. Init شیء را می‌سازد و Deinit حذف می‌کند. این فایل توسط Elemento.mq5 برای نمایش در OnTick فراخوانی می‌شود و اختیاری است (اگر اگر Inp_Visual_ShowTrendStatus خاموش باشد، نادیده گرفته می‌شود).
+// استراتژی کلی اکسپرت: نمایش وضعیت روند (Bullish/Bearish/Neutral) برای هر رنج فعال به طور جداگانه برای کمک به کاربر در نظارت، بدون تأثیر بر منطق معاملاتی.
+// منطق فایل VisualManager.mqh: کلاس شیء LABEL را برای نمایش متن کامل وضعیت هر رنج ایجاد می‌کند، موقعیت، فونت را تنظیم می‌کند. تابع UpdateTrendStatus متن چندخطی را به‌روزرسانی و چارت را redraw می‌کند. Init شیء را می‌سازد و Deinit حذف می‌کند. این فایل توسط Elemento.mq5 برای نمایش در OnTick فراخوانی می‌شود و اختیاری است (اگر Inp_Visual_ShowTrendStatus خاموش باشد، نادیده گرفته می‌شود). تغییرات جدید: پشتیبانی از متن چندخطی برای نمایش هر رنج جداگانه.
 
 #ifndef VISUAL_MANAGER_MQH
 #define VISUAL_MANAGER_MQH
 
-// کلاس CVisualManager برای مدیریت نمایش متن روند روی چارت
+// کلاس CVisualManager برای مدیریت نمایش متن روند هر رنج روی چارت
 class CVisualManager
 {
 private:
@@ -1819,13 +1828,13 @@ public:
       if(InpDebugMode) Print("شیء نمایش روند حذف شد.");
    }
 
-   // به‌روزرسانی نمایش: تغییر متن و رنگ وضعیت روند و redraw چارت
-   void UpdateTrendStatus(string text, color clr)
+   // به‌روزرسانی نمایش: تغییر متن کامل وضعیت روند هر رنج و redraw چارت
+   void UpdateTrendStatus(string fullText)
    {
       if(!Inp_Visual_ShowTrendStatus) return;
 
-      ObjectSetString(0, m_trendStatusObjectName, OBJPROP_TEXT, text);
-      ObjectSetInteger(0, m_trendStatusObjectName, OBJPROP_COLOR, clr);
+      ObjectSetString(0, m_trendStatusObjectName, OBJPROP_TEXT, fullText);
+      ObjectSetInteger(0, m_trendStatusObjectName, OBJPROP_COLOR, Inp_Visual_FontColor_Neutral); // رنگ خنثی برای متن چندخطی
       ChartRedraw();
    }
 };
