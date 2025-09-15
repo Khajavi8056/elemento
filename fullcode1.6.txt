@@ -861,10 +861,10 @@ public:
          double targetDistance = slDistance * m_rrRatio; // فاصله هدف برای خروج پله‌ای
          if(currentProfit >= targetDistance) // چک رسیدن به هدف
          {
-            double partialVolume = volume * m_partialClosePercent / 100.0; // محاسبه حجم جزئی
-            double closeVolume = MathRound(partialVolume / g_volumeStep) * g_volumeStep; // راند حجم
+            double partialVolume = volume * m_partialClosePercent / 100.0; // محاسبه حجم جزئی بر اساس درصد ورودی
+            double closeVolume = MathRound(partialVolume / g_volumeStep) * g_volumeStep; // راند حجم به گام مجاز
 
-            // اگر closeVolume < g_volumeMin اما سود رسیده، کل را ببند برای جلوگیری از گیر کردن
+            // اگر closeVolume < g_volumeMin اما سود رسیده، تنظیم برای بستن کامل اگر لازم
             if(closeVolume < g_volumeMin) // چک حجم کمتر از حداقل
             {
                if(InpDebugMode) Print("حجم محاسبه شده برای خروج پله‌ای (", closeVolume, ") کمتر از حداقل مجاز (", g_volumeMin, ") است. رنج ", m_rangeIndex); // چاپ دیباگ
