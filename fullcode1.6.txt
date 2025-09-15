@@ -872,9 +872,10 @@ public:
          {
             double partialVolume = volume * m_partialClosePercent / 100.0; // محاسبه حجم جزئی بر اساس درصد ورودی
             double closeVolume = MathFloor(partialVolume / g_volumeStep) * g_volumeStep; // راند پایین به گام مجاز برای جلوگیری از حجم بیش از حد
-            if (closeVolume == 0 && partialVolume > g_volumeMin / 2.0){
-            // اگر closeVolume < g_volumeMin اما سود رسیده، تنظیم برای بستن کامل اگر لازم
-                  }
+            if (closeVolume == 0 && partialVolume >= g_volumeMin)
+{
+   closeVolume = g_volumeMin;
+}
             if(closeVolume < g_volumeMin && closeVolume > 0) // چک حجم کمتر از حداقل اما مثبت
             {
                if(InpDebugMode) Print("حجم محاسبه شده برای خروج پله‌ای (", closeVolume, ") کمتر از حداقل مجاز (", g_volumeMin, ") است. رنج ", m_rangeIndex); // چاپ دیباگ
