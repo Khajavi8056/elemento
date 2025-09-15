@@ -567,6 +567,7 @@ bool IsMarketClosed()
 // استراتژی کلی اکسپرت: هر رنج زمانی (مانند سشن آسیا) را شناسایی می‌کند، سقف و کف آن را تعیین می‌کند، اگر ارتفاع معتبر باشد، با افست (بر اساس ATR یا درصد) مسلح می‌شود، منتظر کندل بریک (شکست) می‌ماند، به صورت اختیاری قیمت را تأیید می‌کند (اگر Inp_PriceConfirmation_Enabled فعال باشد)، فیلتر روند را به طور مستقل و در لحظه چک می‌کند، معامله باز می‌کند و سپس معامله را با خروج پله‌ای (هنگام رسیدن به RR)، انتقال SL به ورود، و تریلینگ مدیریت می‌کند. این استراتژی برای بازارهای رنجی با شکست قوی مناسب است و با فیلتر ایچیموکو ریسک خلاف روند را کاهش می‌دهد.
 // منطق فایل CRange.mqh: این کلاس برای هر رنج جداگانه عمل می‌کند. ماشین حالت (ENUM_RANGE_STATE) جریان را کنترل می‌کند: از انتظار رنج جدید شروع می‌شود، رنج را شناسایی و ولید می‌کند، مسلح می‌کند، منتظر بریک و تأییدها می‌ماند، معامله اجرا می‌کند و مدیریت می‌کند. پاکسازی نرم برای ریست روزانه و سخت برای بستن معاملات در تعطیلات استفاده می‌شود. کش ATR برای بهینه‌سازی محاسبات، و فراخوانی مستقل g_trendFilter برای فیلتر دینامیک. تغییرات شامل: اعمال ENUM_SL_STRATEGY در ExecuteTrade برای محاسبه SL (base point بر اساس strategy)، رفع باگ فیلتر با فراخوانی مستقل GetTrendDirection در لحظه، اضافه گتر UpdateLastFilterBarTime برای هماهنگی نمایش، چک اضافی برای cleanupTime، بهینه جستجو تیکت، خروج پله‌ای بهبودیافته، تریلینگ با حداقل تغییر، SL با بافر minStop، بررسی فیلتر روند در هر کندل جدید تایم‌فریم فیلتر، و مدیریت اختیاری تایید قیمت (اگر خاموش، مستقیم از بریک به فیلتر یا ورود). همچنین چک برای عدم وجود کندل در بازه رنج اضافه شده تا از خطاهای Edge Case جلوگیری شود. اصلاح کش ATR برای ثابت بودن در ورود و پویا در تریلینگ، با ریست کش در پاکسازی‌ها. تغییرات جدید در نسخه 1.92: حذف محدودیت زمانی تایمر کندلی (m_waitCounter و Inp_Confirmation_Timeout حذف شدند)، جایگزینی با شرط ابطال بر اساس بازگشت قیمت به داخل رنج (در ProcessEntryAttempt)، ادغام حالت‌های انتظار در AWAITING_ENTRY_CONFIRMATION_BUY/SELL، حذف WaitForPriceConfirmation و WaitForFilterConfirmation، اضافه ProcessEntryAttempt برای چک دینامیک در هر کندل، و ResetToArmedState برای ریست بدون حذف مسیرها (برای حفظ فرصت‌های معاملاتی). همچنین اضافه شدن چک بر اساس ENUM_INVALIDATION_MODE برای انتخاب استراتژی ابطال (صبور یا تهاجمی) در ProcessEntryAttempt. همچنین حذف TP اولیه در ExecuteTrade برای اجازه دادن به روند ادامه‌دار، و اضافه پشتیبانی TRAILING_ICHIMOKU_B در ManageActiveTrade با استفاده از GetSenkouSpanB. همچنین بازگشت منطق قدیمی با تایمر کندلی (m_waitCounter و منطق تایم‌اوت) اگر ENUM_CONFIRMATION_STRATEGY == CONFIRMATION_TIMEOUT انتخاب شود. اصلاح خروج پله‌ای با MathFloor برای راند پایین و چک حجم باقی‌مانده بعد از بستن، و بستن کامل اگر حجم کوچک. همچنین اضافه تابع CheckCleanup برای چک پاکسازی در OnTimer.
 // تغییرات جدید برای حل مشکلات: اضافه تابع CleanupPaths برای پاکسازی اشیاء گرافیکی بدون تغییر حالت (برای حالت معامله باز)، اصلاح CheckCleanup برای مدیریت جداگانه حالت‌ها (با معامله باز: فقط CleanupPaths، بدون معامله: SoftCleanup)، حذف ریست m_lastEndTime از SoftCleanup و HardCleanup برای حفظ حافظه و جلوگیری از پردازش مجدد، و اضافه شرط چک endTime == m_lastEndTime && !m_lastInvalid به IdentifyAndValidateRange برای جلوگیری از پردازش تکراری رنج در یک روز.
+// تغییرات جدید برای حل باگ محاسبه زمان پاکسازی: اضافه متغیر m_rangeEndTime برای ذخیره زمان کامل پایان رنج، ذخیره آن در IdentifyAndValidateRange، اصلاح CalculateCleanupTime برای پذیرش datetime rangeEndTime و محاسبه ساده cleanupTime = rangeEndTime + cleanupHours * 3600، و به‌روزرسانی فراخوانی در ArmAndWait با استفاده از m_rangeEndTime.
 
 #ifndef CRANGE_MQH
 #define CRANGE_MQH
@@ -615,6 +616,7 @@ private:
    color m_color;                          // رنگ مستطیل رنج برای نمایش - رنگ گرافیکی رنج
    double m_rangeHigh, m_rangeLow;         // سقف و کف شناسایی‌شده رنج - سطوح رنج
    datetime m_cleanupTime;                 // زمان محاسبه‌شده پاکسازی - زمان انقضا
+   datetime m_rangeEndTime;                // (جدید) زمان کامل (تاریخ + ساعت) پایان رنج
    string m_rangeObjectName;               // نام شیء گرافیکی مستطیل رنج - نام مستطیل گرافیکی
    ENUM_RANGE_STATE m_currentState;        // حالت فعلی ماشین حالت - حالت جاری رنج
    int m_atrHandle;                        // هندل ATR اصلی برای افست - هندل ATR افست
@@ -646,6 +648,7 @@ public:
               m_trailingMode(TRAILING_ATR), m_trailingAtrPeriod(14), m_trailingAtrMultiplier(1.0), // مقداردهی تریلینگ
               m_rrRatio(1.5), m_partialClosePercent(50.0), m_cleanupHours(5), // مقداردهی RR و پاکسازی
               m_color(clrBlue), m_rangeHigh(0), m_rangeLow(0), m_cleanupTime(0), // مقداردهی رنگ و سطوح
+              m_rangeEndTime(0), // مقداردهی اولیه متغیر جدید زمان پایان رنج
               m_currentState(RANGE_WAITING), m_atrHandle(INVALID_HANDLE), // مقداردهی حالت و هندل‌ها
               m_slAtrHandle(INVALID_HANDLE), m_trailingAtrHandle(INVALID_HANDLE), // هندل‌های اضافی
               m_trailingActivated(false), m_activeTicket(0), m_cachedATR(0), // فلگ‌ها و کش‌ها
@@ -1003,6 +1006,8 @@ private:
          return; // خروج
       }
 
+      m_rangeEndTime = endTime; // ذخیره زمان کامل پایان رنج (برای محاسبه دقیق پاکسازی)
+
       int startShift = iBarShift(_Symbol, m_timeframe, startTime); // شیفت شروع
       int endShift = iBarShift(_Symbol, m_timeframe, endTime); // شیفت پایان
 
@@ -1107,7 +1112,7 @@ private:
          ObjectSetInteger(0, m_sellLineName, OBJPROP_STYLE, STYLE_DASH); // تنظیم استایل داش
       }
 
-      m_cleanupTime = CTimeHelper::CalculateCleanupTime(m_endHour, m_endMinute, m_cleanupHours); // محاسبه زمان پاکسازی
+      m_cleanupTime = CTimeHelper::CalculateCleanupTime(m_rangeEndTime, m_cleanupHours); // محاسبه زمان پاکسازی با استفاده از زمان پایان رنج
 
       if(InpDebugMode) Print("رنج ", m_rangeIndex, " مسلح شد. Potential Buy: ", m_potentialBuyPrice, ", Sell: ", m_potentialSellPrice); // چاپ دیباگ سطوح
       m_currentState = ARMED_AND_WAITING; // تغییر حالت به مسلح و انتظار
@@ -1721,6 +1726,7 @@ public:
 // این فایل کلاس CTimeHelper را تعریف می‌کند که محاسبات زمانی را مدیریت می‌کند.
 // استراتژی کلی اکسپرت: زمان‌های رنج و پاکسازی بر اساس ساعات محلی سرور محاسبه می‌شود تا رنج‌ها دقیقاً در بازه‌های تعریف‌شده عمل کنند و پس از انقضا پاک شوند.
 // منطق فایل TimeHelper.mqh: متدهای استاتیک CalculateRangeTimes زمان شروع/پایان رنج را محاسبه می‌کند (با مدیریت رنج‌های شبانه و تنظیم بر اساس روز فعلی)، و CalculateCleanupTime زمان انقضا را بر اساس ساعت‌های پاکسازی اضافه می‌کند. این فایل توسط CRange برای تعیین زمان‌ها استفاده می‌شود و وابستگی به TimeCurrent دارد. تغییرات: هیچ تغییری لازم نبود، اما کامنت‌ها به‌روزرسانی شد.
+// تغییرات جدید: اصلاح CalculateCleanupTime برای پذیرش datetime rangeEndTime و محاسبه ساده cleanupTime = rangeEndTime + cleanupHours * 3600 برای جلوگیری از باگ محاسبه در رنج‌های شبانه.
 
 #ifndef TIME_HELPER_MQH
 #define TIME_HELPER_MQH
@@ -1756,22 +1762,12 @@ public:
       return true; // بازگشت موفقیت
    }
 
-   // محاسبه زمان پاکسازی: اضافه کردن ساعت‌های پاکسازی به زمان پایان برای انقضا
-   static datetime CalculateCleanupTime(int endHour, int endMinute, int cleanupHours) // محاسبه زمان انقضا
+   // محاسبه زمان پاکسازی: اضافه کردن ساعت‌های پاکسازی به زمان پایان برای انقضا (نسخه اصلاح شده)
+   static datetime CalculateCleanupTime(datetime rangeEndTime, int cleanupHours)
    {
-      MqlDateTime dt; // ساختار زمان
-      TimeToStruct(TimeCurrent(), dt); // تبدیل زمان فعلی
-
-      datetime today = TimeCurrent() - (dt.hour * 3600 + dt.min * 60 + dt.sec); // روز فعلی
-      datetime end = today + endHour * 3600 + endMinute * 60; // زمان پایان
-      if(endHour < dt.hour || (endHour == dt.hour && endMinute <= dt.min)) // چک پایان در روز بعد
-      {
-         end += 86400; // اضافه روز
-      }
-
-      datetime cleanupTime = end + cleanupHours * 3600; // اضافه ساعت‌های پاکسازی
-      if(InpDebugMode) Print("زمان پاکسازی: ", TimeToString(cleanupTime)); // چاپ دیباگ
-      return cleanupTime; // بازگشت زمان
+      datetime cleanupTime = rangeEndTime + cleanupHours * 3600; // به همین سادگی!
+      if(InpDebugMode) Print("زمان پاکسازی محاسبه شد: ", TimeToString(cleanupTime));
+      return cleanupTime;
    }
 };
 
