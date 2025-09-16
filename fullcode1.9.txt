@@ -2225,7 +2225,7 @@ public:
    // TimeToStruct زمان را به ساختار تبدیل می‌کند
    static bool CalculateRangeTimes(int startHour, int startMinute, int endHour, int endMinute, datetime &startTime, datetime &endTime)  // محاسبه زمان رنج
    {
-      long server_gmt_offset = SymbolInfoInteger(_Symbol, SYMBOL_TRADE_CALC_MODE);  // گرفتن افست GMT سرور (برای DST)
+      long server_gmt_offset = TimeTradeServer()-TimeGMT();  // گرفتن افست GMT سرور (برای DST)
       datetime gmt_now = TimeGMT();  // زمان GMT فعلی
       MqlDateTime dt_gmt;  // ساختار زمان GMT
       TimeToStruct(gmt_now, dt_gmt);  // تبدیل به ساختار
@@ -2277,7 +2277,6 @@ endTime = (datetime)(gmt_end_time + server_gmt_offset);  // تنظیم زمان 
 };
 
 #endif  // پایان
-
 
 
 
@@ -2542,7 +2541,6 @@ public:
 string CLogger::m_lastMessage = "";  // مقداردهی اولیه متغیر استاتیک
 
 #endif  // پایان
-
 
 
 
