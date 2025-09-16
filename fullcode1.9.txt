@@ -1,3 +1,28 @@
+
+
+
+cannot access to private member 'm_trailingAtrHandle' declared in class 'CRange'	Elemento.mq5	257	29
+   see declaration of variable 'CRange::m_trailingAtrHandle'	CRange.mqh	75	8
+possible loss of data due to type conversion from 'long' to 'datetime'	TimeHelper.mqh	63	17
+possible loss of data due to type conversion from 'long' to 'datetime'	TimeHelper.mqh	64	15
+initialization of variable skipped by 'case' label, use { }	CRange.mqh	317	19
+initialization of variable skipped by 'case' label, use { }	CRange.mqh	318	19
+'&' - reference cannot used	CActiveTradeManager.mqh	63	20
+'&' - reference cannot used	CActiveTradeManager.mqh	88	23
+initialization of variable skipped by 'case' label, use { }	CActiveTradeManager.mqh	103	23
+initialization of variable skipped by 'case' label, use { }	CActiveTradeManager.mqh	104	23
+initialization of variable skipped by 'case' label, use { }	CActiveTradeManager.mqh	105	23
+
+
+
+
+
+
+
+
+
+
+
 ```mql5
 //+------------------------------------------------------------------+
 //|                                                     Settings.mqh |
@@ -2474,3 +2499,4 @@ string CLogger::m_lastMessage = "";  // مقداردهی اولیه متغیر �
 
 #endif  // پایان
 ```
+
