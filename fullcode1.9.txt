@@ -1,4 +1,178 @@
-آخ آخ! حق با توئه محمد جان، شرمنده. من بیشتر روی منطق و ساختار کلی زوم کرده بودم و این ایرادهای موقع کامپایل از دستم در رفت. راست میگی، باید همون اول اینا رو هم بهت می‌گفتم. دمت گرم که لیستشو فرستادی. اینا مثل غلط املایی می‌مونن، منطق اصلی درسته ولی کامپایلر بهشون گیر می‌ده و باید نازشو بکشیم!
+آخ آخ! حق با توئه محمد جان، شرمنده. من بیشتر روی منطق و ساختار کلی زوم کرده بودم و این ایرادهای موقع کامپایل از دستم در رفت. راست میگی، باید همون اول اینا رو هم بهت می‌گفتم. دمت گرم که لیستشو فرستادی. اینا مثل غلط املایی می‌مونن، منطق اصلی درسته ولی کامپایلر بهشون گیر می‌ده و باید نازشو //+------------------------------------------------------------------+
+//|                                             CActiveTradeManager.mqh |
+//|                       Copyright 2025, Hipoalgorithm Team         |
+//|                       https://hipoalgorithm.com                  |
+//+------------------------------------------------------------------+
+// این فایل کلاس CActiveTradeManager را تعریف می‌کند که مدیریت تمام معاملات باز را بر عهده دارد.
+// استراتژی کلی: این کلاس معاملات باز را از CRange دریافت می‌کند و مدیریت می‌کند (پله‌ای، ریسک-فری، تریلینگ).
+// منطق فایل: آرایه ManagedTrade برای ذخیره اطلاعات هر معامله، ماشین حالت داخلی برای هر معامله (TRADE_PARTIAL_CLOSE, TRADE_RISK_FREE, TRADE_TRAILING).
+// RegisterTrade معامله را اضافه می‌کند، ManageAllTrades تمام معاملات را مدیریت می‌کند و حالت‌ها را بروزرسانی می‌کند.
+// ClosePosition برای بستن کامل استفاده می‌شود.
+// تغییرات جدید: کلاس جدید بر اساس بلوپرینت، با ماشین حالت داخلی برای هر معامله.
+
+#ifndef ACTIVE_TRADE_MANAGER_MQH
+#define ACTIVE_TRADE_MANAGER_MQH
+
+#include "TradeManager.mqh"  // برای PartialClose, MoveSLToBreakEven, TrailingStop
+#include "Logger.mqh"  // برای لاگ
+
+// enum برای حالت‌های مدیریت هر معامله (ماشین حالت داخلی)
+enum ENUM_TRADE_MANAGEMENT_STATE
+{
+   TRADE_PARTIAL_CLOSE,   // مرحله خروج پله‌ای
+   TRADE_RISK_FREE,       // مرحله ریسک-فری
+   TRADE_TRAILING         // مرحله تریلینگ
+};
+
+// ساختار برای هر معامله مدیریت‌شده
+struct ManagedTrade
+{
+   ulong ticket;  // تیکت معامله
+   long magicNumber;  // مجیک برای تمایز
+   int rangeIndex;  // ایندکس رنج (1-4)
+   double initialSlDistance;  // فاصله SL اولیه
+   double entryPrice;  // قیمت ورود
+   bool isPartialClosed;  // فلگ پله‌ای
+   bool isRiskFree;  // فلگ ریسک-فری
+   double rrRatio;  // نسبت RR
+   double partialClosePercent;  // درصد پله‌ای
+   ENUM_TRAILING_MODE trailingMode;  // حالت تریلینگ
+   int trailingAtrPeriod;  // دوره ATR تریلینگ
+   double trailingAtrMultiplier;  // ضریب تریلینگ
+   ENUM_TIMEFRAMES timeframe;  // تایم‌فریم
+   int atrHandle;  // هندل ATR
+   ENUM_TIMEFRAMES trendTf;  // تایم‌فریم فیلتر
+   ENUM_TRADE_MANAGEMENT_STATE currentState;  // حالت فعلی مدیریت
+};
+
+// کلاس CActiveTradeManager برای مدیریت تمام معاملات باز
+class CActiveTradeManager
+{
+private:
+   ManagedTrade m_managedTrades[];  // آرایه معاملات مدیریت‌شده
+
+public:
+   CActiveTradeManager() {}  // سازنده
+
+   // ثبت معامله جدید: اضافه به آرایه و تنظیم حالت اولیه
+   void RegisterTrade(ulong ticket, long magicNumber, int rangeIndex, double initialSlDistance, double entryPrice, double rrRatio, double partialClosePercent,
+                      ENUM_TRAILING_MODE trailingMode, int trailingAtrPeriod, double trailingAtrMultiplier, ENUM_TIMEFRAMES timeframe, int atrHandle, ENUM_TIMEFRAMES trendTf)
+   {
+      int size = ArraySize(m_managedTrades);  // اندازه فعلی آرایه
+      ArrayResize(m_managedTrades, size + 1);  // افزایش اندازه
+      
+      // دسترسی مستقیم به عنصر آرایه به جای استفاده از رفرنس
+      m_managedTrades[size].ticket = ticket;  // تنظیم تیکت
+      m_managedTrades[size].magicNumber = magicNumber;  // تنظیم مجیک
+      m_managedTrades[size].rangeIndex = rangeIndex;  // تنظیم ایندکس رنج
+      m_managedTrades[size].initialSlDistance = initialSlDistance;  // تنظیم فاصله SL
+      m_managedTrades[size].entryPrice = entryPrice;  // تنظیم قیمت ورود
+      m_managedTrades[size].isPartialClosed = false;  // ریست فلگ پله‌ای
+      m_managedTrades[size].isRiskFree = false;  // ریست فلگ ریسک-فری
+      m_managedTrades[size].rrRatio = rrRatio;  // تنظیم RR
+      m_managedTrades[size].partialClosePercent = partialClosePercent;  // تنظیم درصد پله‌ای
+      m_managedTrades[size].trailingMode = trailingMode;  // تنظیم حالت تریلینگ
+      m_managedTrades[size].trailingAtrPeriod = trailingAtrPeriod;  // تنظیم دوره ATR
+      m_managedTrades[size].trailingAtrMultiplier = trailingAtrMultiplier;  // تنظیم ضریب
+      m_managedTrades[size].timeframe = timeframe;  // تنظیم تایم‌فریم
+      m_managedTrades[size].atrHandle = atrHandle;  // تنظیم هندل ATR
+      m_managedTrades[size].trendTf = trendTf;  // تنظیم تایم‌فریم فیلتر
+      m_managedTrades[size].currentState = TRADE_PARTIAL_CLOSE;  // حالت اولیه: پله‌ای
+      CLogger::Log("معامله جدید ثبت شد. تیکت: " + (string)ticket + ", رنج: " + IntegerToString(rangeIndex));  // لاگ ثبت
+   }
+
+   // مدیریت تمام معاملات: حلقه روی آرایه، چک بسته شدن، و اجرای ماشین حالت داخلی
+   void ManageAllTrades()
+   {
+      for(int i = ArraySize(m_managedTrades) - 1; i >= 0; i--)  // حلقه از انتها برای حذف ایمن
+      {
+         // دسترسی مستقیم به عنصر آرایه به جای استفاده از رفرنس
+         if(!PositionSelectByTicket(m_managedTrades[i].ticket))  // چک باز بودن
+         {
+            CLogger::Log("معامله با تیکت " + (string)m_managedTrades[i].ticket + " بسته شده. حذف از لیست.", m_managedTrades[i].rangeIndex);  // لاگ بسته شدن
+            ArrayRemove(m_managedTrades, i, 1);  // حذف از آرایه
+            g_ranges[m_managedTrades[i].rangeIndex - 1].SetCurrentState(RANGE_IDLE);  // اطلاع به رنج مربوطه
+            continue;  // پرش
+         }
+
+         // لاگ ورود به مدیریت معامله
+         CLogger::Log("------ مدیریت معامله تیکت " + (string)m_managedTrades[i].ticket + " در حالت " + EnumToString(m_managedTrades[i].currentState) + " ------", m_managedTrades[i].rangeIndex);  // عنوان حالت مدیریت
+
+         switch(m_managedTrades[i].currentState)  // ماشین حالت داخلی
+         {
+            case TRADE_PARTIAL_CLOSE:  // مرحله پله‌ای
+            { // آکولاد برای حل اخطار کامپایلر اضافه شد
+               double currentPrice = PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY ? SymbolInfoDouble(_Symbol, SYMBOL_BID) : SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+               double currentProfit = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY ? (currentPrice - m_managedTrades[i].entryPrice) : (m_managedTrades[i].entryPrice - currentPrice));
+               double targetProfit = m_managedTrades[i].initialSlDistance * m_managedTrades[i].rrRatio;
+               
+               if(currentProfit >= targetProfit)  // چک رسیدن
+               {
+                  double volume = PositionGetDouble(POSITION_VOLUME);  // حجم فعلی
+                  double closeVolume = MathFloor((volume * m_managedTrades[i].partialClosePercent / 100.0) / g_volumeStep) * g_volumeStep;  // حجم پله‌ای
+                  if(closeVolume >= g_volumeMin && closeVolume < volume)  // چک معتبر
+                  {
+                     if(CTradeManager::PartialClose(m_managedTrades[i].ticket, closeVolume))  // بستن پله‌ای
+                     {
+                        m_managedTrades[i].isPartialClosed = true;  // تنظیم فلگ
+                        m_managedTrades[i].currentState = TRADE_RISK_FREE;  // انتقال به ریسک-فری
+                        CLogger::Log("خروج پله‌ای انجام شد. انتقال به RISK_FREE.", m_managedTrades[i].rangeIndex);  // لاگ انتقال
+                     }
+                  }
+               }
+               break;
+            } // پایان آکولاد
+            case TRADE_RISK_FREE:  // مرحله ریسک-فری
+               if(!m_managedTrades[i].isRiskFree)  // چک فلگ
+               {
+                  double breakEvenBuffer = _Point * 3;  // بافر
+                  double newSL = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? m_managedTrades[i].entryPrice + breakEvenBuffer : m_managedTrades[i].entryPrice - breakEvenBuffer;  // SL جدید
+                  if(CTradeManager::MoveSLToBreakEven(m_managedTrades[i].ticket, newSL))  // انتقال
+                  {
+                     m_managedTrades[i].isRiskFree = true;  // تنظیم فلگ
+                     m_managedTrades[i].currentState = TRADE_TRAILING;  // انتقال به تریلینگ
+                     CLogger::Log("ریسک-فری انجام شد. انتقال به TRAILING.", m_managedTrades[i].rangeIndex);  // لاگ انتقال
+                  }
+               }
+               break;
+            case TRADE_TRAILING:  // مرحله تریلینگ
+               CTradeManager::TrailingStop(m_managedTrades[i].ticket, m_managedTrades[i].trailingMode, m_managedTrades[i].trailingAtrPeriod, m_managedTrades[i].trailingAtrMultiplier, m_managedTrades[i].timeframe, m_managedTrades[i].atrHandle, m_managedTrades[i].trendTf);  // تریلینگ
+               break;
+         }
+      }
+   }
+
+   // بستن کامل معامله: فراخوانی از HardCleanup
+   bool ClosePosition(ulong ticket)
+   {
+      return CTradeManager::ClosePosition(ticket);  // استفاده از TradeManager برای بستن
+   }
+
+   // تنظیم فلگ پله‌ای برای بازیابی
+   void SetPartialClosedFlag(ulong ticket, bool value)
+   {
+      for(int i = 0; i < ArraySize(m_managedTrades); i++)
+      {
+         if(m_managedTrades[i].ticket == ticket)
+         {
+            m_managedTrades[i].isPartialClosed = value;  // تنظیم فلگ
+            break;
+         }
+      }
+   }
+};
+
+// مقداردهی اولیه متغیر استاتیک
+string CLogger::m_lastMessage = "";  // اولیه برای لاگ
+
+#endif
+
+
+
+
+
+
+!
 بیا دونه دونه اینا رو حل کنیم که کد مثل ساعت کار کنه و بدون هیچ اخطار و خطایی کامپایل بشه.
 1. خطای دسترسی به عضو خصوصی (Private Member)
  * پیغام خطا: cannot access to private member 'm_trailingAtrHandle' declared in class 'CRange'
@@ -2616,5 +2790,6 @@ string CLogger::m_lastMessage = "";  // مقداردهی اولیه متغیر �
 
 #endif  // پایان
 ```
+
 
 
