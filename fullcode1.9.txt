@@ -2035,8 +2035,10 @@ public:
          if(!PositionSelectByTicket(m_managedTrades[i].ticket))  // چک باز بودن
          {
             CLogger::Log("معامله با تیکت " + (string)m_managedTrades[i].ticket + " بسته شده. حذف از لیست.", m_managedTrades[i].rangeIndex);  // لاگ بسته شدن
-            ArrayRemove(m_managedTrades, i, 1);  // حذف از آرایه
-            g_ranges[m_managedTrades[i].rangeIndex - 1].SetCurrentState(RANGE_IDLE);  // اطلاع به رنج مربوطه
+           
+           int rangeIdx_to_reset = m_managedTrades[i].rangeIndex;
+           ArrayRemove(m_managedTrades, i, 1);  // حذف از آرایه
+            g_ranges[rangeIdx_to_reset- 1].SetCurrentState(RANGE_IDLE);  // اطلاع به رنج مربوطه
             continue;  // پرش
          }
 
@@ -2111,8 +2113,6 @@ public:
 string CLogger::m_lastMessage = "";  // اولیه برای لاگ
 
 #endif
-
-
 
 
 
