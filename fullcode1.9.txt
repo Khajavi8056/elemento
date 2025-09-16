@@ -1,4 +1,3 @@
-
 ```mql5
 //+------------------------------------------------------------------+
 //|                                                     Settings.mqh |
@@ -244,10 +243,11 @@ input color InpRange4_Color = clrYellow; // رنگ مستطیل رنج 4
 // اضافه متغیر lastTrendStatusText در OnTick برای جلوگیری از لاگ تکراری روند، به‌روزرسانی نسخه به 2.00، 
 // کامنت‌گذاری دقیق‌تر هر خط، و حفظ منطق بازیابی حافظه در OnInit. 
 // این تغییرات عملکرد را بهبود می‌بخشد و لاگ را تمیزتر می‌کند بدون تغییر در استراتژی اصلی.
+// تغییرات جدید در نسخه 2.1: اعمال اصلاحات بلوپرینت برای رفع باگ‌های پاکسازی، ریس کاندیشن، DST و بازیابی وضعیت. نسخه به 2.1 به‌روزرسانی شد.
 
 #property copyright "Copyright 2025, Hipoalgorithm Team"  // کپی‌رایت فایل
 #property link      "https://hipoalgorithm.com"  // لینک وب‌سایت تیم
-#property version   "2.00"  // ورژن نهایی با تغییرات مدیریت معامله و لاگ هوشمند
+#property version   "2.1"  // ورژن نهایی با تغییرات مدیریت معامله و لاگ هوشمند
 #property strict  // حالت厳格 برای جلوگیری از خطاهای کامپایل
 
 #include "Settings.mqh"  // فایل تنظیمات برای دسترسی به ورودی‌ها و enums
@@ -298,7 +298,7 @@ int OnInit()  // تابع مقداردهی اولیه
    
    // چاپ پیام دیباگ برای شروع مقداردهی با استفاده از Print (چون فقط یکبار اجرا می‌شود)
    // این پیام فقط در حالت دیباگ چاپ می‌شود
-   if(InpDebugMode) Print("شروع مقداردهی اکسپرت Elemento نسخه 2.00...");  // چاپ شروع مقداردهی
+   if(InpDebugMode) Print("شروع مقداردهی اکسپرت Elemento نسخه 2.1...");  // چاپ شروع مقداردهی
 
    // کش اطلاعات سیمبل (نماد) برای استفاده در محاسبه ریسک، حجم و فاصله‌ها
    // SymbolInfoDouble اطلاعات معاملاتی نماد را برمی‌گرداند
@@ -440,6 +440,21 @@ int OnInit()  // تابع مقداردهی اولیه
                CLogger::Log("معامله رنج " + IntegerToString(i+1) + " قبلاً ریسک-فری شده. حالت بازیابی شد.", i + 1);  // چاپ دیباگ
             }
 
+            // بازیابی اطلاعات اضافی از کامنت معامله (برای اصلاح باگ بازیابی ناقص)
+            string comment = PositionGetString(POSITION_COMMENT);  // گرفتن کامنت معامله
+            string parts[];  // آرایه برای پارس کامنت
+            if(StringSplit(comment, ';', parts) >= 4)  // پارس کامنت با جداکننده ';'
+            {
+               double rec_high = StringToDouble(StringSubstr(parts[1], 2));  // استخراج High
+               double rec_low = StringToDouble(StringSubstr(parts[2], 2));  // استخراج Low
+               double rec_sl_dist = StringToDouble(StringSubstr(parts[3], 4));  // استخراج SL Distance
+               g_ranges[i].RestoreState(rec_high, rec_low, rec_sl_dist);  // فراخوانی RestoreState برای بازیابی
+            }
+            else
+            {
+               CLogger::Log("کامنت معامله برای بازیابی وضعیت نامعتبر است.", i+1);  // لاگ خطا در پارس کامنت
+            }
+
             CLogger::Log("معامله باز برای رنج " + IntegerToString(i+1) + " بازیابی شد. تیکت: " + (string)ticket, i + 1);  // چاپ دیباگ
             break;  // خروج از حلقه داخلی
          }
@@ -473,7 +488,7 @@ int OnInit()  // تابع مقداردهی اولیه
    EventSetTimer(60);  // تنظیم تایمر ۶۰ ثانیه
 
    // چاپ موفقیت مقداردهی با Print (چون نهایی است)
-   Print("مقداردهی اکسپرت Elemento نسخه 2.00 با موفقیت انجام شد.");  // چاپ موفقیت مقداردهی
+   Print("مقداردهی اکسپرت Elemento نسخه 2.1 با موفقیت انجام شد.");  // چاپ موفقیت مقداردهی
    return(INIT_SUCCEEDED);  // بازگشت موفقیت
 }
 
@@ -482,7 +497,7 @@ int OnInit()  // تابع مقداردهی اولیه
 void OnDeinit(const int reason)  // تابع دفع با دلیل
 {
    // چاپ دیباگ برای دلیل دفع با Print (چون فقط یکبار)
-   if(InpDebugMode) Print("دفع مقداردهی اکسپرت Elemento نسخه 2.00. دلیل: " + IntegerToString(reason));  // چاپ دیباگ برای دلیل دفع
+   if(InpDebugMode) Print("دفع مقداردهی اکسپرت Elemento نسخه 2.1. دلیل: " + IntegerToString(reason));  // چاپ دیباگ برای دلیل دفع
 
    // پاکسازی سخت تمام رنج‌ها برای بستن معاملات باقی‌مانده و ریست (در صورت کرش یا خروج)
    // حلقه برای پاکسازی سخت هر رنج
@@ -590,51 +605,29 @@ void OnTick()  // تابع اصلی هر تیک
          CLogger::Log("کندل جدید برای رنج " + IntegerToString(i + 1) + " در تایم‌فریم " + EnumToString(timeframe), i + 1);  // چاپ دیباگ برای کندل جدید
          g_ranges[i].UpdateOnNewBar();  // به‌روزرسانی ماشین حالت رنج
          g_lastBarTime[i] = currentBarTime;  // ذخیره زمان جدید
-         newBarDetected = true;  // تنظیم فلگ کندل جدید
+         newBarDetected = true;  // تنظیم فلگ برای به‌روزرسانی نمایش
       }
 
-      // چک کندل جدید در تایم‌فریم فیلتر برای آپدیت نمایش روند آن رنج
-      // گرفتن تایم‌فریم فیلتر از کلاس
-      ENUM_TIMEFRAMES trendTf = g_ranges[i].GetTrendFilterTimeframe();  // گرفتن تایم‌فریم فیلتر
-      datetime currentTrendBarTime = iTime(_Symbol, trendTf, 0);  // زمان کندل فیلتر فعلی
-      if(currentTrendBarTime > g_ranges[i].GetLastFilterBarTime())  // چک کندل جدید فیلتر
-      {
-         // گرفتن جهت روند از فیلتر
-         ENUM_TREND_DIRECTION trend = g_trendFilter.GetTrendDirection(trendTf);  // گرفتن جهت روند
-         // تبدیل جهت به رشته برای نمایش
-         string trendStr = trend == TREND_BUY ? "Bullish" : trend == TREND_SELL ? "Bearish" : "Neutral";  // تبدیل جهت به رشته
-         string tfStr = EnumToString(trendTf);  // تبدیل تایم‌فریم به رشته
-         // اضافه به متن نمایش با فرمت مشخص
-         trendDisplayText += "Range " + IntegerToString(i + 1) + " (Filter " + tfStr + "): " + trendStr + "\n";  // اضافه به متن نمایش
-         g_ranges[i].UpdateLastFilterBarTime(currentTrendBarTime);  // آپدیت زمان در رنج
-         // چاپ دیباگ برای آپدیت روند با CLogger
-         CLogger::Log("آپدیت روند رنج " + IntegerToString(i + 1) + ": " + trendStr, i + 1);  // چاپ دیباگ برای آپدیت روند
-      }
-
-      // مدیریت معاملات به OnTimer منتقل شده، اینجا فقط چک حالت برای اطمینان
-      if(enabled && g_ranges[i].GetCurrentState() == MANAGING_TRADE)  // چک حالت مدیریت معامله
-      {
-         // هیچ عملی در OnTick، مدیریت در OnTimer انجام می‌شود
-         // این چک فقط برای اطمینان از حالت است
-      }
+      // جمع‌آوری متن وضعیت روند برای نمایش (حتی بدون کندل جدید، برای ثبات)
+      ENUM_TREND_DIRECTION trend = g_trendFilter.GetTrendDirection(g_ranges[i].GetTrendFilterTimeframe());  // گرفتن جهت روند رنج
+      string trendStr = trend == TREND_BUY ? "Bullish" : trend == TREND_SELL ? "Bearish" : "Neutral";  // تبدیل به متن
+      trendDisplayText += "Range " + IntegerToString(i + 1) + ": " + trendStr + "\n";  // اضافه به متن کامل
    }
 
-   // لاگ کردن وضعیت روند فقط اگر تغییر کرده باشد و متن موجود باشد
-   if(trendDisplayText != "" && trendDisplayText != lastTrendStatusText)  // چک تغییر متن
+   // اگر کندل جدید تشخیص داده شد، نمایش را به‌روزرسانی و لاگ اگر تغییر کند
+   if(newBarDetected)  // شرط به‌روزرسانی
    {
-      CLogger::Log("وضعیت روند آپدیت شد:\n" + trendDisplayText);  // لاگ کردن وضعیت روند
-      lastTrendStatusText = trendDisplayText;  // ذخیره متن جدید
-   }
-
-   // آپدیت نمایشگر با متن کامل وضعیت روند هر رنج (اگر نمایش فعال باشد)
-   if(Inp_Visual_ShowTrendStatus && trendDisplayText != "")  // چک فعال بودن نمایش و متن موجود
-   {
+      if(trendDisplayText != lastTrendStatusText)  // چک تغییر متن
+      {
+         CLogger::Log("وضعیت روند تغییر کرد: \n" + trendDisplayText);  // لاگ وضعیت جدید
+         lastTrendStatusText = trendDisplayText;  // ذخیره متن جدید
+      }
       g_visualManager.UpdateTrendStatus(trendDisplayText);  // به‌روزرسانی نمایشگر
    }
 }
 
-// تابع تایمر (OnTimer): مدیریت معاملات فعال هر ۶۰ ثانیه برای کاهش بار OnTick
-// این تابع هر 60 ثانیه فراخوانی می‌شود و مدیریت معاملات را انجام می‌دهد
+// تابع تایمر (OnTimer): مدیریت معاملات فعال هر ۶۰ ثانیه برای بهینه‌سازی
+// این تابع برای جلوگیری از بار سنگین OnTick استفاده می‌شود
 void OnTimer()  // تابع تایمر
 {
    // حلقه برای هر رنج فعال
@@ -642,1086 +635,823 @@ void OnTimer()  // تابع تایمر
    {
       // چک فعال بودن رنج
       bool enabled = i == 0 ? InpRange1_Enabled : i == 1 ? InpRange2_Enabled : i == 2 ? InpRange3_Enabled : InpRange4_Enabled;  // چک فعال بودن
-      if(enabled)  // شرط فعال
-      {
-         // چک پاکسازی در هر دقیقه (برای پاکسازی به‌موقع بدون وابستگی به کندل جدید)
-         g_ranges[i].CheckCleanup();  // فراخوانی چک پاکسازی
+      if(!enabled) continue;  // پرش اگر غیرفعال
 
-         if(g_ranges[i].GetCurrentState() == MANAGING_TRADE)  // چک حالت مدیریت
-         {
-            g_ranges[i].ManageActiveTrade();  // مدیریت خروج پله‌ای، بریک‌اون و تریلینگ
-         }
+      // چک و مدیریت پاکسازی رنج
+      g_ranges[i].CheckCleanup();  // چک زمان انقضا و پاکسازی اگر لازم
+
+      // مدیریت معامله فعال اگر وجود داشته باشد
+      if(g_ranges[i].GetCurrentState() == MANAGING_TRADE)  // چک حالت مدیریت معامله
+      {
+         g_ranges[i].ManageActiveTrade();  // مدیریت خروج پله‌ای و تریلینگ
       }
    }
 }
 
-// تابع چک یک ساعت قبل از بسته شدن بازار (برای فعال کردن پاکسازی سخت و جلوگیری از معاملات باز در تعطیلات)
-// این تابع زمان بسته شدن را محاسبه می‌کند
-bool IsOneHourBeforeMarketClose()  // تابع چک یک ساعت قبل از بسته شدن
+// چک بازار بسته: بررسی اگر بازار تعطیل باشد (برای جلوگیری از معاملات نامعتبر)
+// SymbolInfoSessionTrade جلسه معاملاتی را چک می‌کند
+bool IsMarketClosed()  // چک بازار بسته
 {
-   datetime from = 0, to = 0;  // متغیرهای زمان جلسه
    MqlDateTime dt;  // ساختار زمان
-   TimeToStruct(TimeTradeServer(), dt);  // تبدیل زمان سرور به ساختار
-   ENUM_DAY_OF_WEEK day = (ENUM_DAY_OF_WEEK)dt.day_of_week;  // روز هفته
-   datetime max_to = 0;  // حداکثر زمان بسته شدن
-   uint session = 0;  // شمارنده جلسه
-   // پیدا کردن آخرین جلسه معاملاتی روز برای تعیین زمان بسته شدن
-   // حلقه جلسات با SymbolInfoSessionTrade
-   while(SymbolInfoSessionTrade(_Symbol, day, session, from, to))  // حلقه جلسات
-   {
-      if(to > max_to) max_to = to;  // ذخیره حداکثر زمان
-      session++;  // افزایش شمارنده
-   }
-   if(max_to == 0)  // چک عدم یافتن جلسه
-   {
-      CLogger::Log("خطا در SymbolInfoSessionTrade: " + IntegerToString(GetLastError()));  // چاپ خطا
-      return false;  // بازگشت نادرست
-   }
-   datetime currentTime = TimeTradeServer();  // زمان فعلی سرور
-   // چک اگر زمان فعلی یک ساعت قبل از بسته شدن باشد (برای پاکسازی پیشگیرانه)
-   if(currentTime >= (max_to - 3600) && currentTime < max_to)  // چک محدوده زمان
-   {
-      CLogger::Log("یک ساعت قبل از بسته شدن بازار: پاکسازی سخت فعال شد.");  // چاپ دیباگ
-      return true;  // بازگشت درست
-   }
-   return false;  // بازگشت نادرست
+   TimeToStruct(TimeCurrent(), dt);  // تبدیل زمان فعلی
+   datetime from, to;  // زمان‌های جلسه
+   return !SymbolInfoSessionTrade(_Symbol, (ENUM_DAY_OF_WEEK)dt.day_of_week, 0, from, to);  // بازگشت بسته اگر جلسه نباشد
 }
 
-// تابع چک بسته بودن بازار (برای فعال کردن پاکسازی نرم و جلوگیری از عملیات در تعطیلات)
-// این تابع وضعیت بازار را بر اساس جلسات چک می‌کند
-bool IsMarketClosed()  // تابع چک بسته بودن بازار
+// چک یک ساعت قبل از بسته شدن بازار: برای جلوگیری از ورود نزدیک به تعطیلی
+// این تابع زمان باقی‌مانده تا بسته شدن را چک می‌کند
+bool IsOneHourBeforeMarketClose()  // چک یک ساعت قبل بسته شدن
 {
-   datetime from = 0, to = 0;  // متغیرهای زمان جلسه
    MqlDateTime dt;  // ساختار زمان
-   TimeToStruct(TimeTradeServer(), dt);  // تبدیل زمان سرور به ساختار
-   ENUM_DAY_OF_WEEK day = (ENUM_DAY_OF_WEEK)dt.day_of_week;  // روز هفته
-   uint session = 0;  // شمارنده جلسه
-   // چک جلسات معاملاتی روز برای تعیین وضعیت بازار
-   // حلقه جلسات
-   while(SymbolInfoSessionTrade(_Symbol, day, session, from, to))  // حلقه جلسات
+   TimeToStruct(TimeCurrent(), dt);  // تبدیل زمان فعلی
+   datetime from, to;  // زمان‌های جلسه
+   if(SymbolInfoSessionTrade(_Symbol, (ENUM_DAY_OF_WEEK)dt.day_of_week, 0, from, to))  // چک جلسه
    {
-      if(TimeTradeServer() >= from && TimeTradeServer() <= to)  // چک داخل جلسه
-      {
-         return false;  // بازار باز است، عملیات ادامه می‌یابد
-      }
-      session++;  // افزایش شمارنده
+      datetime closeTime = from + to;  // زمان بسته شدن
+      return (closeTime - TimeCurrent()) <= 3600;  // چک کمتر از یک ساعت
    }
-   // چک تعطیلات آخر هفته (شنبه و یکشنبه)
-   if(dt.day_of_week == 6 || dt.day_of_week == 0)  // چک شنبه یا یکشنبه
-   {
-      CLogger::Log("بازار تعطیل است (weekend).");  // چاپ دیباگ
-      return true;  // بازگشت درست
-   }
-   CLogger::Log("بازار تعطیل است (خارج از جلسه).");  // چاپ دیباگ
-   return true;  // بازگشت درست
+   return true;  // اگر جلسه نباشد، بسته فرض شود
 }
 ```
 
 ```mql5
 //+------------------------------------------------------------------+
-//|                                                          Utils.mqh |
+//|                                                     Logger.mqh |
 //|                       Copyright 2025, Hipoalgorithm Team         |
 //|                       https://hipoalgorithm.com                  |
 //+------------------------------------------------------------------+
-// این فایل شامل توابع کمکی عمومی برای اکسپرت Elemento است.
-// استراتژی کلی: این فایل برای بهینه‌سازی و استانداردسازی عملیات مشترک مانند نرمال‌سازی قیمت‌ها و اعتبارسنجی‌ها استفاده می‌شود.
-// منطق فایل Utils.mqh: حاوی توابع استاتیک برای نرمال‌سازی قیمت‌ها بر اساس Tick Size نماد. 
-// این فایل توسط فایل‌های دیگر مانند CRange.mqh include می‌شود تا دسترسی به توابع کمکی فراهم شود.
-// تغییرات جدید در نسخه 2.00: بهبود کامنت‌گذاری برای هر خط، اضافه توضیحات دقیق‌تر برای NormalizePrice، 
-// بدون تغییر در منطق تابع اما با چک اضافی برای tickSize صفر.
+// یک کتابخانه ساده و استاتیک برای مدیریت لاگ‌نویسی هوشمند
+// این فایل برای جلوگیری از لاگ تکراری و نویز طراحی شده است.
+// تغییرات نسخه 2.00: فایل جدید با CLogger استاتیک، m_lastMessage برای جلوگیری از تکرار، 
+// فرمت استاندارد با پیشوند [Elemento] [Range X] >> پیام.
 
-#ifndef UTILS_MQH  // چک وجود فایل
-#define UTILS_MQH  // تعریف ماکرو
+#ifndef LOGGER_MQH  // چک وجود
+#define LOGGER_MQH  // تعریف ماکرو
 
-// تابع برای نرمال سازی دقیق قیمت بر اساس TickSize نماد
-// این تابع قیمت را به نزدیک‌ترین مضرب tickSize راند می‌کند و به _Digits نرمال می‌کند
-double NormalizePrice(double price)  // تابع نرمال‌سازی قیمت
-{
-   // گرفتن اندازه تیک نماد با SymbolInfoDouble
-   double tickSize = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);  // گرفتن اندازه تیک نماد
-   if(tickSize > 0)  // چک اگر tickSize معتبر باشد (بزرگتر از صفر)
-   {
-      // راند به نزدیک‌ترین مضرب tickSize با MathRound و سپس نرمال‌سازی به _Digits با NormalizeDouble
-      return NormalizeDouble(MathRound(price / tickSize) * tickSize, _Digits);  // راند به نزدیک‌ترین مضرب tickSize و نرمال‌سازی به _Digits
-   }
-   // اگر tickSize صفر بود، نرمال‌سازی استاندارد بدون راند تیک
-   return NormalizeDouble(price, _Digits);  // اگر tickSize صفر بود، نرمال‌سازی استاندارد
-}
-
-#endif  // پایان چک include
-```
-
-```mql5
-//+------------------------------------------------------------------+
-//|                                                         CRange.mqh |
-//|                       Copyright 2025, Hipoalgorithm Team         |
-//|                       https://hipoalgorithm.com                  |
-//+------------------------------------------------------------------+
-// این فایل کلاس CRange را تعریف می‌کند که هسته استراتژی شکست رنج را مدیریت می‌کند.
-// استراتژی کلی اکسپرت: هر رنج زمانی (مانند سشن آسیا) را شناسایی می‌کند، سقف و کف آن را تعیین می‌کند، 
-// اگر ارتفاع معتبر باشد، با افست (بر اساس ATR یا درصد) مسلح می‌شود، منتظر کندل بریک (شکست) می‌ماند، 
-// به صورت اختیاری قیمت را تأیید می‌کند (اگر Inp_PriceConfirmation_Enabled فعال باشد)، 
-// فیلتر روند را به طور مستقل و در لحظه چک می‌کند، معامله باز می‌کند 
-// و سپس معامله را با خروج پله‌ای (هنگام رسیدن به RR)، انتقال SL به ورود، و تریلینگ مدیریت می‌کند. 
-// این استراتژی برای بازارهای رنجی با شکست قوی مناسب است و با فیلتر ایچیموکو ریسک خلاف روند را کاهش می‌دهد.
-// منطق فایل CRange.mqh: این کلاس برای هر رنج جداگانه عمل می‌کند. 
-// ماشین حالت (ENUM_RANGE_STATE) جریان را کنترل می‌کند: از انتظار رنج جدید شروع می‌شود، 
-// رنج را شناسایی و ولید می‌کند، مسلح می‌کند، منتظر بریک و تأییدها می‌ماند، معامله اجرا می‌کند و مدیریت می‌کند. 
-// پاکسازی نرم برای ریست روزانه و سخت برای بستن معاملات در تعطیلات استفاده می‌شود. 
-// کش ATR برای بهینه‌سازی محاسبات، و فراخوانی مستقل g_trendFilter برای فیلتر دینامیک. 
-// تغییرات شامل: اعمال ENUM_SL_STRATEGY در ExecuteTrade برای محاسبه SL (base point بر اساس strategy)، 
-// رفع باگ فیلتر با فراخوانی مستقل GetTrendDirection در لحظه، اضافه گتر UpdateLastFilterBarTime برای هماهنگی نمایش، 
-// چک اضافی برای cleanupTime، بهینه جستجو تیکت، خروج پله‌ای بهبودیافته، تریلینگ با حداقل تغییر، 
-// SL با بافر minStop، بررسی فیلتر روند در هر کندل جدید تایم‌فریم فیلتر، 
-// و مدیریت اختیاری تایید قیمت (اگر خاموش، مستقیم از بریک به فیلتر یا ورود). 
-// همچنین چک برای عدم وجود کندل در بازه رنج اضافه شده تا از خطاهای Edge Case جلوگیری شود. 
-// اصلاح کش ATR برای ثابت بودن در ورود و پویا در تریلینگ، با ریست کش در پاکسازی‌ها. 
-// تغییرات جدید در نسخه 2.00: حذف محدودیت زمانی تایمر کندلی (m_waitCounter و Inp_Confirmation_Timeout حذف شدند)، 
-// جایگزینی با شرط ابطال بر اساس بازگشت قیمت (در ProcessEntryAttempt)، 
-// ادغام حالت‌های انتظار در AWAITING_ENTRY_CONFIRMATION_BUY/SELL، 
-// حذف WaitForPriceConfirmation و WaitForFilterConfirmation، 
-// اضافه ProcessEntryAttempt برای چک دینامیک در هر کندل، 
-// و ResetToArmedState برای ریست بدون حذف مسیرها (برای حفظ فرصت‌های معاملاتی). 
-// همچنین اضافه شدن چک بر اساس ENUM_INVALIDATION_MODE برای انتخاب استراتژی ابطال (صبور یا تهاجمی) در ProcessEntryAttempt. 
-// همچنین حذف TP اولیه در ExecuteTrade برای اجازه دادن به روند ادامه‌دار، 
-// و اضافه پشتیبانی TRAILING_ICHIMOKU_B در ManageActiveTrade با استفاده از GetSenkouSpanB. 
-// همچنین بازگشت منطق قدیمی با تایمر کندلی (m_waitCounter و منطق تایم‌اوت) اگر ENUM_CONFIRMATION_STRATEGY == CONFIRMATION_TIMEOUT انتخاب شود. 
-// اصلاح خروج پله‌ای با MathFloor برای راند پایین و چک حجم باقی‌مانده بعد از بستن، و بستن کامل اگر حجم کوچک. 
-// همچنین اضافه تابع CheckCleanup برای چک پاکسازی در OnTimer.
-// تغییرات جدید برای حل مشکلات: اضافه تابع CleanupPaths برای پاکسازی اشیاء گرافیکی بدون تغییر حالت (برای حالت معامله باز)، 
-// اصلاح CheckCleanup برای مدیریت جداگانه حالت‌ها (با معامله باز: فقط CleanupPaths، بدون معامله: SoftCleanup)، 
-// حذف ریست m_lastEndTime از SoftCleanup و HardCleanup برای حفظ حافظه و جلوگیری از پردازش مجدد، 
-// و اضافه شرط چک endTime == m_lastEndTime && !m_lastInvalid به IdentifyAndValidateRange برای جلوگیری از پردازش تکراری رنج در یک روز.
-// تغییرات جدید برای حل باگ محاسبه زمان پاکسازی: اضافه متغیر m_rangeEndTime برای ذخیره زمان کامل پایان رنج، 
-// ذخیره آن در IdentifyAndValidateRange، اصلاح CalculateCleanupTime برای پذیرش datetime rangeEndTime و محاسبه ساده cleanupTime = rangeEndTime + cleanupHours * 3600، 
-// و به‌روزرسانی فراخوانی در ArmAndWait با استفاده از m_rangeEndTime.
-// بررسی مدیریت سرمایه: استاپ لاس اولیه ثابت است و تریلینگ فقط پس از رسیدن به RR و ریسک فری فعال می‌شود، که منطق صحیح است. 
-// تغییرات جدید برای نسخه حرفه‌ای: اضافه m_fixedOffsetValue برای ثابت کردن افست ATR در لحظه شناسایی رنج، 
-// محاسبه آن در IdentifyAndValidateRange، و استفاده از آن در ArmAndWait برای جلوگیری از جابجایی خطوط. 
-// همچنین در ExecuteTrade، اضافه چک پیش-اعتبارسنجی مارجین با OrderCalcMargin برای جلوگیری از معامله بدون مارجین کافی.
-// تغییرات جدید برای حل باگ بازیابی ناقص: اضافه تابع عمومی SetPartialClosedFlag برای تنظیم m_partialClosed از بیرون (در OnInit برای بازیابی حالت ریسک-فری).
-// تغییرات جدید برای حل Race Condition: در ManageActiveTrade، ساختار تغییر یافته تا پس از هر عملیات مهم (partial close یا move SL) return کند 
-// تا هر عملیات در یک چرخه OnTimer جداگانه انجام شود. همچنین چک اضافی در trailing برای اطمینان از انجام BE (m_slToBeMoved false باشد).
-// تغییرات جدید برای بهبود HardCleanup: پس از ClosePosition، ریست دستی m_activeTicket, m_partialClosed, m_slToBeMoved قبل از فراخوانی SoftCleanup 
-// برای پاکسازی کامل و بدون ابهام.
-// تغییرات نسخه 2.00: بازسازی کامل ManageActiveTrade با محاسبه سود بر اساس قیمت (نه دلار)، اضافه بافر 3 پوینت در ریسک-فری، 
-// اجرای مرحله‌ای با return پس از هر مرحله، جایگزینی تمام Print با CLogger::Log، کامنت‌گذاری دقیق هر خط.
-
-#ifndef CRANGE_MQH  // چک وجود فایل
-#define CRANGE_MQH  // تعریف ماکرو
-
-#include "TimeHelper.mqh"  // کلاس کمک‌کننده زمان برای محاسبات رنج و پاکسازی
-#include "RiskManager.mqh"  // کلاس مدیریت ریسک برای محاسبه حجم
-#include "TradeManager.mqh"  // کلاس مدیریت معامله برای خروج پله‌ای، تریلینگ و غیره
-#include "Utils.mqh"  // کلاس کمکی برای نرمال‌سازی قیمت‌ها
-#include "Logger.mqh"  // کتابخانه لاگ هوشمند برای چاپ پیام‌های کنترل‌شده
-
-// تعریف enum برای حالت‌های رنج (ماشین حالت برای کنترل جریان هر رنج جداگانه)
-// این enum جریان استراتژی را از انتظار تا مدیریت معامله کنترل می‌کند
-enum ENUM_RANGE_STATE
-{
-   RANGE_WAITING,                  // انتظار برای رنج جدید (حالت اولیه یا پس از پاکسازی، آماده شناسایی)
-   RANGE_IDENTIFIED,               // رنج شناسایی و معتبر شده (پس از چک ارتفاع، آماده مسلح کردن)
-   ARMED_AND_WAITING,              // رنج مسلح شده و منتظر شکست (خطوط افست رسم شده، منتظر کندل بریک)
-   AWAITING_ENTRY_CONFIRMATION_BUY, // انتظار تایید ورود خرید (پس از کندل بریک خرید، چک ابطال و تاییدها)
-   AWAITING_ENTRY_CONFIRMATION_SELL,// انتظار تایید ورود فروش (پس از کندل بریک فروش، چک ابطال و تاییدها)
-   MANAGING_TRADE,                 // مدیریت معامله فعال (خروج پله‌ای، ریسک-فری، تریلینگ، مرحله‌ای)
-   RANGE_EXPIRED                   // رنج منقضی شده (پس از پاکسازی یا نامعتبر، آماده رنج جدید)
-};
-
-// کلاس CRange برای مدیریت هر رنج زمانی به طور مستقل
-// این کلاس تمام منطق یک رنج را از شناسایی تا مدیریت معامله کپسوله می‌کند
-class CRange  // کلاس اصلی مدیریت رنج
+// کلاس CLogger استاتیک برای لاگ بدون نمونه‌سازی
+class CLogger  // کلاس لاگ
 {
 private:
-   int m_rangeIndex;  // ایندکس رنج (1 تا 4 برای تمایز، برای لاگ و اشیاء)
-   long m_magicNumber;  // مجیک نامبر منحصربه‌فرد برای معاملات این رنج (برای تمایز در PositionsTotal)
-   ENUM_TIMEFRAMES m_timeframe;  // تایم‌فریم اجرا برای محاسبات رنج (برای iHigh/iLow/iClose)
-   int m_startHour;  // ساعت شروع رنج (0-23، بر اساس GMT سرور)
-   int m_startMinute;  // دقیقه شروع رنج (0-59)
-   int m_endHour;  // ساعت پایان رنج (0-23)
-   int m_endMinute;  // دقیقه پایان رنج (0-59)
-   int m_minRangePoints;  // حداقل ارتفاع مجاز رنج به پوینت (برای فیلتر رنج‌های کوچک)
-   int m_maxRangePoints;  // حداکثر ارتفاع مجاز رنج به پوینت (برای فیلتر رنج‌های بزرگ)
-   ENUM_PLACEMENT_MODE m_placementMode;  // حالت افست شکست (ATR یا درصد، برای محاسبه سطوح)
-   int m_atrPeriod;  // دوره ATR برای افست (برای iATR)
-   double m_atrMultiplier;  // ضریب ATR برای افست (برای حساسیت)
-   ENUM_SL_STRATEGY m_slStrategy;  // استراتژی جایگذاری SL (مقابل یا سطح شکست، برای base point)
-   ENUM_SL_CALC_MODE m_slCalcMode;  // حالت محاسبه بافر SL (ATR یا درصد)
-   int m_slAtrPeriod;  // دوره ATR برای بافر SL
-   double m_slAtrMultiplier;  // ضریب ATR برای بافر SL
-   ENUM_TRAILING_MODE m_trailingMode;  // حالت تریلینگ (ATR یا Senkou B)
-   int m_trailingAtrPeriod;  // دوره ATR برای تریلینگ
-   double m_trailingAtrMultiplier;  // ضریب ATR برای تریلینگ
-   double m_rrRatio;  // نسبت R:R برای خروج پله‌ای (سود/ریسک)
-   double m_partialClosePercent;  // درصد خروج پله‌ای (0-100)
-   int m_cleanupHours;  // ساعت‌های پاکسازی پس از پایان رنج (0-24)
-   color m_color;  // رنگ مستطیل رنج (برای OBJ_RECTANGLE)
-   ENUM_TIMEFRAMES m_trendFilterTimeframe;  // تایم‌فریم فیلتر روند (برای GetTrendDirection)
-   int m_atrHandle;  // هندل ATR برای افست (shared از Elemento)
-   int m_slAtrHandle;  // هندل ATR برای SL (جداگانه برای دوره متفاوت)
-   int m_trailingAtrHandle;  // هندل ATR برای تریلینگ (جداگانه)
-   ENUM_RANGE_STATE m_currentState;  // حالت فعلی رنج (ماشین حالت)
-   double m_rangeHigh;  // سقف رنج شناسایی‌شده (از iHighest)
-   double m_rangeLow;  // کف رنج شناسایی‌شده (از iLowest)
-   double m_potentialBuyPrice;  // سطح خرید با افست (برای چک بریک)
-   double m_potentialSellPrice;  // سطح فروش با افست (برای چک بریک)
-   double m_breakerCandleLevel;  // سطح کلوز کندل شکننده (برای تایید قیمت)
-   ulong m_activeTicket;  // تیکت معامله فعال (از result.deal)
-   bool m_partialClosed;  // فلگ خروج پله‌ای انجام شده (برای زنجیره مدیریت)
-   bool m_slToBeMoved;  // فلگ انتقال SL به ورود (برای مرحله ریسک-فری)
-   double m_cachedATR;  // کش ATR برای ورود (ثابت، محاسبه در شناسایی)
-   double m_cachedSlATR;  // کش ATR برای SL (ثابت)
-   double m_cachedTrailingATR;  // کش ATR برای تریلینگ (پویا در مدیریت، اما کش اولیه)
-   int m_waitCounter;  // شمارنده کندل برای حالت تایمر قدیمی (فقط اگر CONFIRMATION_TIMEOUT)
-   datetime m_cleanupTime;  // زمان پاکسازی محاسبه‌شده (از CalculateCleanupTime)
-   datetime m_lastEndTime;  // آخرین زمان پایان پردازش شده (برای جلوگیری از تکرار شناسایی)
-   bool m_lastInvalid;  // فلگ آخرین رنج نامعتبر (برای جلوگیری از تکرار)
-   datetime m_rangeEndTime;  // زمان کامل پایان رنج (برای محاسبه دقیق پاکسازی)
-   datetime m_lastFilterBarTime;  // زمان آخرین کندل فیلتر روند (برای آپدیت نمایش)
-   double m_fixedOffsetValue;  // مقدار ثابت افست ATR یا درصد در لحظه شناسایی رنج (برای ثابت کردن خطوط)
-   string m_rangeObjectName;  // نام مستطیل رنج (برای OBJ_RECTANGLE)
-   string m_buyLineName;  // نام خط خرید (برای OBJ_HLINE)
-   string m_sellLineName;  // نام خط فروش (برای OBJ_HLINE)
-
-   // شناسایی و ولید رنج: محاسبه سقف/کف، چک ارتفاع و رسم مستطیل اگر معتبر باشد
-   // این تابع رنج را بر اساس زمان محاسبه و ولید می‌کند
-   void IdentifyAndValidateRange();  // شناسایی و ولید رنج
-
-   // مسلح کردن رنج: محاسبه افست ثابت و رسم خطوط خرید/فروش با افست
-   // این تابع سطوح را رسم و حالت را تغییر می‌دهد
-   void ArmAndWait();  // مسلح کردن رنج
-
-   // انتظار برای کندل بریک: چک کلوز بالای/پایین افست برای شروع تایید ورود
-   // این تابع شکست را تشخیص می‌دهد
-   void WaitForBreakerCandle();  // انتظار برای کندل بریک
-
-   // فرآیند تلاش ورود: چک ابطال، تایید قیمت و فیلتر روند، اجرای معامله اگر تایید شد
-   // این تابع ابطال و تاییدها را مدیریت می‌کند
-   void ProcessEntryAttempt();  // فرآیند تلاش ورود
-
-   // ریست به حالت مسلح: ریست سطح بریک بدون حذف خطوط برای حفظ فرصت‌ها
-   // این تابع برای ابطال بدون پاکسازی استفاده می‌شود
-   void ResetToArmedState();  // ریست به حالت مسلح
-
-   // اجرای معامله: محاسبه SL با استراتژی جدید، حجم و ارسال سفارش بازار
-   // این تابع معامله را باز می‌کند
-   void ExecuteTrade(bool isBuy);  // اجرای معامله
-
-   // غیرفعال کردن مسیر مخالف: حذف خط و ریست قیمت برای OCO
-   // این تابع مسیر مخالف را غیرفعال می‌کند
-   void DisableOppositePath(bool isBuy);  // غیرفعال کردن مسیر مخالف
-
-   // پاکسازی نرم: ریست متغیرها و حذف اشیاء بدون بستن معامله
-   // این تابع برای ریست روزانه استفاده می‌شود
-   void SoftCleanup();  // پاکسازی نرم
-
-   // پاکسازی مسیرها: حذف اشیاء گرافیکی بدون تغییر حالت (برای معامله باز)
-   // این تابع فقط اشیاء را پاک می‌کند
-   void CleanupPaths();  // پاکسازی مسیرها
-
-   // گرفتن ATR کش‌شده: محاسبه اگر خالی باشد (برای ورود ثابت)
-   // این تابع کش ATR را مدیریت می‌کند
-   double GetCachedATR();  // گرفتن ATR کش‌شده
-
-   // گرفتن ATR برای SL: مشابه برای SL (ثابت)
-   // این تابع کش SL را مدیریت می‌کند
-   double GetSlATR();  // گرفتن ATR برای SL
-
-   // گرفتن ATR برای تریلینگ: مشابه برای تریلینگ (پویا در مدیریت)
-   // این تابع کش تریلینگ را مدیریت می‌کند
-   double GetTrailingATR();  // گرفتن ATR برای تریلینگ
+   static string m_lastMessage;  // برای ذخیره آخرین پیام و جلوگیری از تکرار (استاتیک برای اشتراک)
 
 public:
-   // سازنده پیش‌فرض با مقادیر اولیه برای جلوگیری از garbage values
-   CRange() : m_rangeIndex(0), m_magicNumber(0), m_timeframe(PERIOD_CURRENT), m_startHour(0), m_startMinute(0), m_endHour(0), m_endMinute(0),
-              m_minRangePoints(0), m_maxRangePoints(0), m_placementMode(PLACEMENT_ATR), m_atrPeriod(0), m_atrMultiplier(0.0),
-              m_slStrategy(SL_OPPOSITE_SIDE), m_slCalcMode(SL_CALC_ATR), m_slAtrPeriod(0), m_slAtrMultiplier(0.0),
-              m_trailingMode(TRAILING_ATR), m_trailingAtrPeriod(0), m_trailingAtrMultiplier(0.0), m_rrRatio(0.0), m_partialClosePercent(0.0),
-              m_cleanupHours(0), m_color(clrNONE), m_trendFilterTimeframe(PERIOD_CURRENT), m_atrHandle(INVALID_HANDLE),
-              m_slAtrHandle(INVALID_HANDLE), m_trailingAtrHandle(INVALID_HANDLE), m_currentState(RANGE_WAITING),
-              m_rangeHigh(0), m_rangeLow(0), m_potentialBuyPrice(0), m_potentialSellPrice(0), m_breakerCandleLevel(0),
-              m_activeTicket(0), m_partialClosed(false), m_slToBeMoved(false), m_cachedATR(0), m_cachedSlATR(0), m_cachedTrailingATR(0),
-              m_waitCounter(0), m_cleanupTime(0), m_lastEndTime(0), m_lastInvalid(false), m_rangeEndTime(0), m_lastFilterBarTime(0),
-              m_fixedOffsetValue(0.0), m_rangeObjectName(""), m_buyLineName(""), m_sellLineName("") {}  // سازنده پیش‌فرض با مقادیر اولیه
+   // تابع اصلی لاگ‌نویسی
+   // این تابع پیام را با چک تکرار چاپ می‌کند
+   static void Log(string message, int rangeIndex = 0)  // تابع لاگ با پیام و ایندکس اختیاری
+   {
+      // فقط اگر حالت دیباگ فعال باشد لاگ می‌نویسد
+      if(!InpDebugMode)  // شرط دیباگ
+         return;  // خروج بدون چاپ
+         
+      // اگر پیام جدید با پیام قبلی یکی باشد، آن را نادیده می‌گیرد
+      if(message == m_lastMessage)  // چک تکرار
+         return;  // خروج
 
-   // مقداردهی رنج: تنظیم پارامترها، ایجاد هندل‌های ATR و نام‌گذاری اشیاء
-   // این تابع تمام پارامترها را از ورودی‌ها می‌گیرد
-   bool Init(int index, long magic, ENUM_TIMEFRAMES timeframe, int startHour, int startMinute, int endHour, int endMinute,
-             int minRangePoints, int maxRangePoints, ENUM_PLACEMENT_MODE placementMode, int atrPeriod, double atrMultiplier,
-             ENUM_SL_STRATEGY slStrategy, ENUM_SL_CALC_MODE slCalcMode, int slAtrPeriod, double slAtrMultiplier,
-             ENUM_TRAILING_MODE trailingMode, int trailingAtrPeriod, double trailingAtrMultiplier,
-             double rrRatio, double partialClosePercent, int cleanupHours, color col, ENUM_TIMEFRAMES trendTf, int sharedAtrHandle);  // مقداردهی رنج
-
-   // دفع رنج: آزادسازی هندل‌های ATR
-   // این تابع منابع را آزاد می‌کند
-   void Deinit();  // دفع رنج
-
-   // به‌روزرسانی در کندل جدید: اجرای ماشین حالت
-   // این تابع بر اساس حالت فعلی عمل می‌کند
-   void UpdateOnNewBar();  // به‌روزرسانی در کندل جدید
-
-   // مدیریت معامله فعال: چک خروج پله‌ای، انتقال SL و تریلینگ
-   // این تابع زنجیره مدیریت را مرحله‌ای اجرا می‌کند
-   void ManageActiveTrade();  // مدیریت معامله فعال
-
-   // پاکسازی سخت: بستن معامله اگر باز باشد و سپس پاکسازی نرم (برای تعطیلات یا دفع)
-   // این تابع برای پاکسازی کامل استفاده می‌شود
-   void HardCleanup();  // پاکسازی سخت
-
-   // چک پاکسازی: چک زمان انقضا و فراخوانی پاکسازی مناسب
-   // این تابع در OnTimer فراخوانی می‌شود
-   void CheckCleanup();  // چک پاکسازی
-
-   // ریست کش‌ها: صفر کردن کش ATRها برای رنج جدید
-   // این تابع کش‌ها را ریست می‌کند
-   void ResetCaches();  // ریست کش‌ها
-
-   // گرفتن تایم‌فریم اجرا
-   // این گتر تایم‌فریم را برمی‌گرداند
-   ENUM_TIMEFRAMES GetTimeframe() const { return m_timeframe; }  // بازگشت تایم‌فریم اجرا
-
-   // گرفتن تایم‌فریم فیلتر روند
-   // این گتر فیلتر را برمی‌گرداند
-   ENUM_TIMEFRAMES GetTrendFilterTimeframe() const { return m_trendFilterTimeframe; }  // بازگشت تایم‌فریم فیلتر
-
-   // گرفتن حالت فعلی
-   // این گتر حالت را برمی‌گرداند
-   ENUM_RANGE_STATE GetCurrentState() const { return m_currentState; }  // بازگشت حالت فعلی
-
-   // تنظیم حالت فعلی (برای استفاده داخلی یا بازیابی حافظه)
-   // این ستر حالت را تنظیم می‌کند
-   void SetCurrentState(ENUM_RANGE_STATE state) { m_currentState = state; }  // تنظیم حالت
-
-   // گرفتن زمان آخرین کندل فیلتر
-   // این گتر زمان فیلتر را برمی‌گرداند
-   datetime GetLastFilterBarTime() const { return m_lastFilterBarTime; }  // بازگشت زمان فیلتر
-
-   // به‌روزرسانی زمان آخرین کندل فیلتر
-   // این ستر زمان را آپدیت می‌کند
-   void UpdateLastFilterBarTime(datetime time) { m_lastFilterBarTime = time; }  // تنظیم زمان فیلتر
-
-   // تنظیم تیکت فعال (برای بازیابی حافظه)
-   // این ستر تیکت را تنظیم می‌کند
-   void SetActiveTicket(ulong ticket) { m_activeTicket = ticket; }  // تنظیم تیکت
-
-   // (جدید) تنظیم فلگ پله‌ای (برای بازیابی حافظه در OnInit)
-   // این ستر فلگ را از بیرون تنظیم می‌کند
-   void SetPartialClosedFlag(bool value) { m_partialClosed = value; }  // تنظیم فلگ m_partialClosed از بیرون
+      string prefix = "[Elemento]";  // پیشوند کلی
+      
+      if(rangeIndex > 0)  // اگر مربوط به یک رنج خاص باشد
+      {
+         prefix += " [Range " + IntegerToString(rangeIndex) + "]";  // اضافه ایندکس
+      }
+      
+      Print(prefix + " >> " + message);  // چاپ پیام نهایی با Print (MT5 استاندارد)
+      
+      m_lastMessage = message;  // ذخیره پیام فعلی برای مقایسه بعدی
+   }
 };
 
-// پیاده‌سازی توابع کلاس CRange (خارج از تعریف کلاس برای خوانایی)
-// تمام توابع private/public در ادامه تعریف می‌شوند
+// مقداردهی اولیه متغیر استاتیک (خارج از کلاس)
+string CLogger::m_lastMessage = "";  // مقداردهی اولیه متغیر استاتیک
 
-// مقداردهی رنج: تنظیم پارامترها، ایجاد هندل‌های ATR و نام‌گذاری اشیاء
-// این تابع تمام فیلدهای private را مقداردهی می‌کند
-bool CRange::Init(int index, long magic, ENUM_TIMEFRAMES timeframe, int startHour, int startMinute, int endHour, int endMinute,
-                  int minRangePoints, int maxRangePoints, ENUM_PLACEMENT_MODE placementMode, int atrPeriod, double atrMultiplier,
-                  ENUM_SL_STRATEGY slStrategy, ENUM_SL_CALC_MODE slCalcMode, int slAtrPeriod, double slAtrMultiplier,
-                  ENUM_TRAILING_MODE trailingMode, int trailingAtrPeriod, double trailingAtrMultiplier,
-                  double rrRatio, double partialClosePercent, int cleanupHours, color col, ENUM_TIMEFRAMES trendTf, int sharedAtrHandle)  // پارامترهای ورودی
+#endif  // پایان
+```
+
+```mql5
+//+------------------------------------------------------------------+
+//|                                                      CRange.mqh |
+//|                       Copyright 2025, Hipoalgorithm Team         |
+//|                       https://hipoalgorithm.com                  |
+//+------------------------------------------------------------------+
+// این فایل کلاس CRange را تعریف می‌کند که مدیریت مستقل هر رنج را بر عهده دارد.
+// استراتژی کلی اکسپرت: هر رنج یک ماشین حالت (state machine) است که مراحل شناسایی رنج، انتظار شکست، 
+// تایید قیمت، فیلتر روند، ورود معامله، و مدیریت معامله (خروج پله‌ای و تریلینگ) را مدیریت می‌کند. 
+// این کلاس اجازه می‌دهد چهار رنج همزمان بدون تداخل کار کنند.
+// منطق فایل CRange.mqh: کلاس شامل متغیرهای خصوصی (مانند m_rangeHigh/Low برای سطوح رنج، m_potentialBuy/SellPrice برای سطوح شکست، 
+// m_activeTicket برای معامله فعال، m_partialClosed برای خروج پله‌ای) و public (برای دسترسی خارجی مانند GetTimeframe). 
+// enums برای حالت‌های رنج (مانند RANGE_WAITING، RANGE_IDENTIFIED، AWAITING_BREAKOUT) استفاده می‌شود. 
+// توابع کلیدی: Init/Deinit برای مقداردهی/دفع، UpdateOnNewBar برای به‌روزرسانی ماشین حالت در کندل جدید، 
+// IdentifyRange برای شناسایی رنج، CalculatePlacementOffset برای افست شکست، CalculateSL برای SL، 
+// ExecuteTrade برای ورود معامله، ManageActiveTrade برای مدیریت (با خروج پله‌ای و تریلینگ)، 
+// Soft/HardCleanup برای پاکسازی. 
+// تغییرات جدید در نسخه 2.00: تغییر PartialClose به روش مخالف برای سازگاری، محاسبه سود بر اساس قیمت، 
+// مدیریت مرحله‌ای در ManageActiveTrade، اضافه INVALIDATION_MODE و CONFIRMATION_STRATEGY، 
+// به‌روزرسانی کامنت‌ها. 
+// این تغییرات سیستم را مقاوم‌تر و انعطاف‌پذیرتر می‌کند بدون تغییر استراتژی اصلی.
+// تغییرات جدید در نسخه 2.1: حذف CleanupPaths() و ادغام در SoftCleanup() هوشمند، اصلاح CheckCleanup()، 
+// فراخوانی SoftCleanup() در ManageActiveTrade() هنگام بسته شدن موقعیت، اصلاح Race Condition با ریست m_slToBeMoved حتی در شکست، 
+// اضافه m_initialSlDistance و RestoreState() برای بازیابی کامل وضعیت.
+
+#ifndef C_RANGE_MQH  // چک وجود فایل برای جلوگیری از include مکرر
+#define C_RANGE_MQH  // تعریف ماکرو برای جلوگیری از include مجدد
+
+#include "Settings.mqh"  // فایل تنظیمات برای enums و ورودی‌ها
+#include "Logger.mqh"  // لاگ هوشمند برای چاپ دیباگ
+#include "TradeManager.mqh"  // کلاس مدیریت معامله برای خروج پله‌ای و تریلینگ
+#include "RiskManager.mqh"  // کلاس ریسک برای محاسبه حجم
+#include "TimeHelper.mqh"  // کلاس زمان برای محاسبات رنج و پاکسازی
+#include <Trade\Trade.mqh>  // کلاس معامله استاندارد MT5
+
+// تعریف enum برای حالت‌های ماشین رنج (برای مدیریت چرخه رنج از شناسایی تا مدیریت معامله)
+// این enum جریان منطقی هر رنج را کنترل می‌کند
+enum ENUM_RANGE_STATE
 {
-   // تنظیم ایندکس رنج برای لاگ و اشیاء
-   m_rangeIndex = index;  // تنظیم ایندکس رنج
-   // تنظیم مجیک برای تمایز معاملات
-   m_magicNumber = magic;  // تنظیم مجیک
-   // تنظیم تایم‌فریم اجرا
-   m_timeframe = timeframe;  // تنظیم تایم‌فریم اجرا
-   // تنظیم زمان شروع
-   m_startHour = startHour;  // تنظیم ساعت شروع
-   m_startMinute = startMinute;  // تنظیم دقیقه شروع
-   // تنظیم زمان پایان
-   m_endHour = endHour;  // تنظیم ساعت پایان
-   m_endMinute = endMinute;  // تنظیم دقیقه پایان
-   // تنظیم محدودیت‌های ارتفاع
-   m_minRangePoints = minRangePoints;  // تنظیم حداقل ارتفاع
-   m_maxRangePoints = maxRangePoints;  // تنظیم حداکثر ارتفاع
-   // تنظیم حالت افست
-   m_placementMode = placementMode;  // تنظیم حالت افست
-   // تنظیم پارامترهای ATR افست
-   m_atrPeriod = atrPeriod;  // تنظیم دوره ATR افست
-   m_atrMultiplier = atrMultiplier;  // تنظیم ضریب ATR افست
-   // تنظیم پارامترهای SL
-   m_slStrategy = slStrategy;  // تنظیم استراتژی SL
-   m_slCalcMode = slCalcMode;  // تنظیم حالت بافر SL
-   m_slAtrPeriod = slAtrPeriod;  // تنظیم دوره ATR SL
-   m_slAtrMultiplier = slAtrMultiplier;  // تنظیم ضریب ATR SL
-   // تنظیم پارامترهای تریلینگ
-   m_trailingMode = trailingMode;  // تنظیم حالت تریلینگ
-   m_trailingAtrPeriod = trailingAtrPeriod;  // تنظیم دوره ATR تریلینگ
-   m_trailingAtrMultiplier = trailingAtrMultiplier;  // تنظیم ضریب ATR تریلینگ
-   // تنظیم پارامترهای مدیریت معامله
-   m_rrRatio = rrRatio;  // تنظیم نسبت RR
-   m_partialClosePercent = partialClosePercent;  // تنظیم درصد پله‌ای
-   m_cleanupHours = cleanupHours;  // تنظیم ساعت‌های پاکسازی
-   m_color = col;  // تنظیم رنگ
-   m_trendFilterTimeframe = trendTf;  // تنظیم تایم‌فریم فیلتر
-   m_atrHandle = sharedAtrHandle;  // هندل ATR افست (مشترک)
+   RANGE_WAITING,       // انتظار برای شناسایی رنج جدید (حالت اولیه یا پس از پاکسازی)
+   RANGE_IDENTIFIED,    // رنج شناسایی شده، منتظر شکست (پس از شناسایی High/Low)
+   AWAITING_BREAKOUT,   // منتظر شکست با افست (پس از رسم سطوح)
+   AWAITING_CONFIRMATION, // منتظر تایید قیمت و فیلتر روند (پس از شکست اولیه)
+   MANAGING_TRADE,      // مدیریت معامله فعال (پس از ورود)
+   RANGE_EXPIRED        // رنج منقضی شده، منتظر پاکسازی (پس از پایان زمان یا معامله بسته)
+};
 
-   // ایجاد هندل‌های جداگانه برای SL و تریلینگ (برای دوره‌های متفاوت)
-   // iATR هندل اندیکاتور را ایجاد می‌کند
-   m_slAtrHandle = iATR(_Symbol, timeframe, m_slAtrPeriod);  // هندل ATR برای SL
-   if(m_slAtrHandle == INVALID_HANDLE)  // چک موفقیت ایجاد
-   {
-      CLogger::Log("خطا در ایجاد هندل ATR برای SL رنج " + IntegerToString(index), index);  // چاپ خطا
-      return false;  // بازگشت شکست
-   }
-   m_trailingAtrHandle = iATR(_Symbol, timeframe, m_trailingAtrPeriod);  // هندل ATR برای تریلینگ
-   if(m_trailingAtrHandle == INVALID_HANDLE)  // چک موفقیت
-   {
-      CLogger::Log("خطا در ایجاد هندل ATR برای تریلینگ رنج " + IntegerToString(index), index);  // چاپ خطا
-      return false;  // بازگشت شکست
-   }
-
-   // نام‌گذاری اشیاء گرافیکی با ایندکس برای تمایز
-   m_rangeObjectName = "Range_Rect_" + IntegerToString(index);  // نام مستطیل رنج
-   m_buyLineName = "Range_BuyLine_" + IntegerToString(index);  // نام خط خرید
-   m_sellLineName = "Range_SellLine_" + IntegerToString(index);  // نام خط فروش
-
-   ResetCaches();  // ریست کش‌ها در شروع
-   m_currentState = RANGE_WAITING;  // حالت اولیه انتظار
-   m_lastFilterBarTime = 0;  // ریست زمان فیلتر
-   // چاپ موفقیت با CLogger
-   CLogger::Log("رنج " + IntegerToString(index) + " مقداردهی شد.", index);  // چاپ موفقیت
-   return true;  // بازگشت موفقیت
-}
-
-// دفع رنج: آزادسازی هندل‌های ATR
-// IndicatorRelease هندل‌ها را آزاد می‌کند
-void CRange::Deinit()  // تابع دفع
+// کلاس CRange برای مدیریت مستقل هر رنج (شناسایی، شکست، ورود، مدیریت و پاکسازی)
+// هر نمونه یک رنج را کنترل می‌کند
+class CRange  // کلاس رنج
 {
-   if(m_slAtrHandle != INVALID_HANDLE) IndicatorRelease(m_slAtrHandle);  // آزادسازی هندل SL
-   if(m_trailingAtrHandle != INVALID_HANDLE) IndicatorRelease(m_trailingAtrHandle);  // آزادسازی هندل تریلینگ
-   CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + " دفع شد.", m_rangeIndex);  // چاپ دیباگ
-}
+private:
+   int m_rangeIndex;  // ایندکس رنج (1-4 برای لاگ و تمایز)
+   long m_magic;  // مجیک نامبر منحصربه‌فرد برای معاملات این رنج
+   ENUM_TIMEFRAMES m_timeframe;  // تایم‌فریم اجرا رنج (برای محاسبات)
+   ENUM_TIMEFRAMES m_trendFilterTimeframe;  // تایم‌فریم فیلتر روند (برای ایچیموکو)
+   int m_startHour, m_startMinute;  // ساعت/دقیقه شروع رنج
+   int m_endHour, m_endMinute;  // ساعت/دقیقه پایان رنج
+   int m_minRangePoints, m_maxRangePoints;  // حداقل/حداکثر ارتفاع رنج به پوینت
+   ENUM_PLACEMENT_MODE m_placementMode;  // حالت افست شکست (ATR/درصد)
+   int m_atrPeriod;  // دوره ATR برای افست
+   double m_atrMultiplier;  // ضریب ATR برای افست
+   ENUM_SL_STRATEGY m_slStrategy;  // استراتژی جایگذاری SL (مقابل/سطح شکست)
+   ENUM_SL_CALC_MODE m_slCalcMode;  // حالت محاسبه بافر SL (ATR/درصد)
+   int m_slAtrPeriod;  // دوره ATR برای SL
+   double m_slAtrMultiplier;  // ضریب ATR برای SL
+   ENUM_TRAILING_MODE m_trailingMode;  // حالت تریلینگ (ATR/ایچیموکو B)
+   int m_trailingAtrPeriod;  // دوره ATR برای تریلینگ
+   double m_trailingAtrMultiplier;  // ضریب ATR برای تریلینگ
+   double m_rrRatio;  // نسبت R:R برای خروج پله‌ای
+   double m_partialClosePercent;  // درصد خروج پله‌ای
+   int m_cleanupHours;  // ساعت‌های انقضا پس از پایان رنج
+   color m_color;  // رنگ گرافیکی رنج
+   int m_atrHandle;  // هندل ATR برای افست (shared از Elemento)
+   int m_slAtrHandle;  // هندل ATR برای SL (ایجاد در Init)
+   int m_trailingAtrHandle;  // هندل ATR برای تریلینگ (ایجاد در Init)
+   double m_rangeHigh, m_rangeLow;  // سطوح High/Low رنج شناسایی‌شده
+   datetime m_rangeStartTime, m_rangeEndTime;  // زمان شروع/پایان رنج محاسبه‌شده
+   datetime m_lastEndTime;  // زمان پایان آخرین رنج برای جلوگیری از پردازش مجدد
+   bool m_lastInvalid;  // فلگ رنج نامعتبر قبلی برای جلوگیری از لاگ تکراری
+   double m_potentialBuyPrice, m_potentialSellPrice;  // سطوح شکست خرید/فروش با افست
+   double m_breakerCandleLevel;  // سطح کندل شکننده برای تایید قیمت
+   int m_waitCounter;  // شمارنده برای تایم‌اوت تایید (اگر CONFIRMATION_TIMEOUT)
+   datetime m_lastFilterBarTime;  // زمان آخرین چک فیلتر برای جلوگیری از چک مکرر
+   ENUM_RANGE_STATE m_currentState;  // حالت فعلی ماشین رنج
+   ulong m_activeTicket;  // تیکت معامله فعال (برای مدیریت)
+   bool m_partialClosed;  // فلگ خروج پله‌ای انجام شده
+   bool m_slToBeMoved;  // فلگ انتقال SL به ورود (ریسک-فری)
+   double m_cachedATR;  // کش ATR برای افست (ریست در SoftCleanup)
+   double m_cachedSlATR;  // کش ATR برای SL (ریست در SoftCleanup)
+   double m_cachedTrailingATR;  // کش ATR برای تریلینگ (ریست در SoftCleanup)
+   string m_rangeObjectName;  // نام مستطیل رنج برای گرافیک
+   string m_buyLineName, m_sellLineName;  // نام خطوط شکست برای گرافیک
+   datetime m_cleanupTime;  // زمان محاسبه‌شده پاکسازی (برای CheckCleanup)
+   double m_initialSlDistance;  // فاصله SL اولیه (برای بازیابی وضعیت پس از ری‌استارت)
 
-// به‌روزرسانی در کندل جدید: اجرای ماشین حالت
-// سوئیچ بر اساس حالت فعلی برای کنترل جریان
-void CRange::UpdateOnNewBar()  // تابع به‌روزرسانی
-{
-   // سوئیچ بر اساس حالت فعلی برای اجرای تابع مربوطه
-   switch(m_currentState)  // سوئیچ بر اساس حالت فعلی
+public:
+   // سازنده: مقداردهی اولیه متغیرها به مقادیر پیش‌فرض برای ایمنی
+   CRange() : m_rangeIndex(0), m_magic(0), m_timeframe(PERIOD_CURRENT), m_trendFilterTimeframe(PERIOD_CURRENT), 
+              m_startHour(0), m_startMinute(0), m_endHour(0), m_endMinute(0), 
+              m_minRangePoints(0), m_maxRangePoints(0), m_placementMode(PLACEMENT_ATR), m_atrPeriod(14), m_atrMultiplier(1.0), 
+              m_slStrategy(SL_OPPOSITE_SIDE), m_slCalcMode(SL_CALC_ATR), m_slAtrPeriod(14), m_slAtrMultiplier(1.0), 
+              m_trailingMode(TRAILING_ATR), m_trailingAtrPeriod(14), m_trailingAtrMultiplier(1.0), 
+              m_rrRatio(1.5), m_partialClosePercent(50.0), m_cleanupHours(5), m_color(clrBlue), 
+              m_atrHandle(INVALID_HANDLE), m_slAtrHandle(INVALID_HANDLE), m_trailingAtrHandle(INVALID_HANDLE), 
+              m_rangeHigh(0), m_rangeLow(0), m_rangeStartTime(0), m_rangeEndTime(0), m_lastEndTime(0), m_lastInvalid(false), 
+              m_potentialBuyPrice(0), m_potentialSellPrice(0), m_breakerCandleLevel(0), m_waitCounter(0), m_lastFilterBarTime(0), 
+              m_currentState(RANGE_WAITING), m_activeTicket(0), m_partialClosed(false), m_slToBeMoved(false), 
+              m_cachedATR(0), m_cachedSlATR(0), m_cachedTrailingATR(0), m_rangeObjectName(""), m_buyLineName(""), m_sellLineName(""), 
+              m_cleanupTime(0), m_initialSlDistance(0) {}  // سازنده پیش‌فرض
+
+   // دفع: آزادسازی هندل‌های ATR و حذف اشیاء گرافیکی
+   void Deinit()  // تابع دفع رنج
    {
-      case RANGE_WAITING:  // حالت انتظار
-         IdentifyAndValidateRange();  // شناسایی رنج
-         break;  // خروج از کیس
-      case RANGE_IDENTIFIED:  // رنج شناسایی‌شده
-         ArmAndWait();  // مسلح کردن
-         break;  // خروج
-      case ARMED_AND_WAITING:  // مسلح و انتظار
-         WaitForBreakerCandle();  // انتظار بریک
-         break;  // خروج
-      case AWAITING_ENTRY_CONFIRMATION_BUY:  // انتظار تایید خرید
-      case AWAITING_ENTRY_CONFIRMATION_SELL:  // انتظار تایید فروش
-         ProcessEntryAttempt();  // فرآیند ورود
-         break;  // خروج
-      case MANAGING_TRADE:  // مدیریت معامله
-         // مدیریت به OnTimer منتقل شده
-         // هیچ عملی در OnTick
-         break;  // خروج
-      case RANGE_EXPIRED:  // منقضی
-         // هیچ عملی، منتظر رنج جدید
-         break;  // خروج
+      if(m_slAtrHandle != INVALID_HANDLE) IndicatorRelease(m_slAtrHandle);  // آزادسازی هندل SL ATR
+      if(m_trailingAtrHandle != INVALID_HANDLE) IndicatorRelease(m_trailingAtrHandle);  // آزادسازی هندل تریلینگ ATR
+      ObjectDelete(0, m_rangeObjectName);  // حذف مستطیل رنج
+      ObjectDelete(0, m_buyLineName);  // حذف خط خرید
+      ObjectDelete(0, m_sellLineName);  // حذف خط فروش
+      CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + " دفع شد.", m_rangeIndex);  // چاپ دیباگ
    }
 
-   CheckCleanup();  // چک پاکسازی در هر کندل جدید
-}
-
-// شناسایی و ولید رنج: محاسبه سقف/کف، چک ارتفاع، محاسبه ثابت افست و رسم مستطیل اگر معتبر باشد
-// این تابع رنج را بر اساس زمان و داده‌های کندل محاسبه می‌کند
-void CRange::IdentifyAndValidateRange()  // تابع شناسایی
-{
-   CLogger::Log("شناسایی رنج " + IntegerToString(m_rangeIndex) + "...", m_rangeIndex);  // چاپ دیباگ برای شناسایی
-
-   datetime startTime, endTime;  // متغیرهای زمان شروع و پایان
-   // محاسبه زمان‌ها با CTimeHelper
-   if(!CTimeHelper::CalculateRangeTimes(m_startHour, m_startMinute, m_endHour, m_endMinute, startTime, endTime))  // محاسبه زمان‌ها
+   // مقداردهی: تنظیم پارامترها، ایجاد هندل‌های ATR و نام اشیاء
+   // این تابع در OnInit Elemento فراخوانی می‌شود
+   bool Init(int index, long magic, ENUM_TIMEFRAMES timeframe, int startHour, int startMinute, int endHour, int endMinute, 
+             int minRangePoints, int maxRangePoints, ENUM_PLACEMENT_MODE placementMode, int atrPeriod, double atrMultiplier, 
+             ENUM_SL_STRATEGY slStrategy, ENUM_SL_CALC_MODE slCalcMode, int slAtrPeriod, double slAtrMultiplier, 
+             ENUM_TRAILING_MODE trailingMode, int trailingAtrPeriod, double trailingAtrMultiplier, 
+             double rrRatio, double partialClosePercent, int cleanupHours, color col, ENUM_TIMEFRAMES trendTf, int atrHandle)  // Init با پارامترها
    {
-      CLogger::Log("خطا در محاسبه زمان رنج " + IntegerToString(m_rangeIndex), m_rangeIndex);  // چاپ خطا
-      m_currentState = RANGE_EXPIRED;  // تنظیم به منقضی
-      return;  // خروج
-   }
+      m_rangeIndex = index;  // تنظیم ایندکس
+      m_magic = magic;  // تنظیم مجیک
+      m_timeframe = timeframe;  // تنظیم تایم‌فریم اجرا
+      m_trendFilterTimeframe = trendTf;  // تنظیم تایم‌فریم فیلتر
+      m_startHour = startHour; m_startMinute = startMinute;  // تنظیم شروع
+      m_endHour = endHour; m_endMinute = endMinute;  // تنظیم پایان
+      m_minRangePoints = minRangePoints; m_maxRangePoints = maxRangePoints;  // تنظیم حداقل/حداکثر
+      m_placementMode = placementMode; m_atrPeriod = atrPeriod; m_atrMultiplier = atrMultiplier;  // تنظیم افست
+      m_slStrategy = slStrategy; m_slCalcMode = slCalcMode; m_slAtrPeriod = slAtrPeriod; m_slAtrMultiplier = slAtrMultiplier;  // تنظیم SL
+      m_trailingMode = trailingMode; m_trailingAtrPeriod = trailingAtrPeriod; m_trailingAtrMultiplier = trailingAtrMultiplier;  // تنظیم تریلینگ
+      m_rrRatio = rrRatio; m_partialClosePercent = partialClosePercent;  // تنظیم خروج پله‌ای
+      m_cleanupHours = cleanupHours;  // تنظیم پاکسازی
+      m_color = col;  // تنظیم رنگ
+      m_atrHandle = atrHandle;  // هندل ATR shared
 
-   // چک برای جلوگیری از پردازش تکراری رنج در یک روز (با چک نامعتبر بودن آخرین)
-   // این شرط از محاسبات مکرر جلوگیری می‌کند
-   if(endTime == m_lastEndTime && !m_lastInvalid) return;  // اگر همان پایان قبلی و معتبر، پرش
-   if(endTime == m_lastEndTime && m_lastInvalid) return;  // اگر همان و نامعتبر، پرش
-   if(TimeCurrent() < endTime) return;  // اگر هنوز پایان نرسیده، پرش
-
-   m_rangeEndTime = endTime;  // ذخیره زمان پایان کامل برای پاکسازی دقیق
-
-   // iBarShift شیفت کندل را بر اساس زمان برمی‌گرداند
-   int startShift = iBarShift(_Symbol, m_timeframe, startTime);  // شیفت شروع
-   int endShift = iBarShift(_Symbol, m_timeframe, endTime);  // شیفت پایان
-
-   if(startShift < 0 || endShift < 0)  // چک شیفت معتبر (برای Edge Case بدون کندل)
-   {
-      CLogger::Log("خطا: کندلی در بازه زمانی مشخص شده برای رنج " + IntegerToString(m_rangeIndex) + " یافت نشد.", m_rangeIndex);  // چاپ خطا
-      m_lastInvalid = true;  // تنظیم فلگ نامعتبر
-      m_lastEndTime = endTime;  // ذخیره پایان
-      m_currentState = RANGE_EXPIRED;  // تنظیم به منقضی
-      return;  // خروج
-   }
-
-   int bars = startShift - endShift + 1;  // تعداد بارها در رنج
-   if(bars <= 0)  // چک تعداد معتبر
-   {
-      CLogger::Log("خطا: تعداد بارها نامعتبر برای رنج " + IntegerToString(m_rangeIndex), m_rangeIndex);  // چاپ خطا
-      m_lastInvalid = true;  // تنظیم فلگ
-      m_lastEndTime = endTime;  // ذخیره پایان
-      m_currentState = RANGE_EXPIRED;  // تنظیم به منقضی
-      return;  // خروج
-   }
-
-   // محاسبه سقف و کف رنج با iHighest/iLowest
-   int highestIdx = iHighest(_Symbol, m_timeframe, MODE_HIGH, bars, endShift);  // ایندکس سقف
-   int lowestIdx = iLowest(_Symbol, m_timeframe, MODE_LOW, bars, endShift);  // ایندکس کف
-   m_rangeHigh = iHigh(_Symbol, m_timeframe, highestIdx);  // سقف رنج
-   m_rangeLow = iLow(_Symbol, m_timeframe, lowestIdx);  // کف رنج
-
-   double rangeHeight = (m_rangeHigh - m_rangeLow) / _Point;  // ارتفاع به پوینت
-   CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + ": سقف=" + DoubleToString(m_rangeHigh, _Digits) + ", کف=" + DoubleToString(m_rangeLow, _Digits) + ", ارتفاع=" + DoubleToString(rangeHeight, 0) + " پوینت", m_rangeIndex);  // چاپ دیباگ
-
-   // چک کیفیت رنج (ارتفاع در محدوده مجاز)
-   if(rangeHeight < m_minRangePoints || rangeHeight > m_maxRangePoints)  // شرط چک ارتفاع
-   {
-      CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + " بی‌کیفیت است. ارتفاع خارج از محدوده مجاز.", m_rangeIndex);  // چاپ خطا
-      m_lastInvalid = true;  // تنظیم فلگ
-      m_lastEndTime = endTime;  // ذخیره پایان
-      m_currentState = RANGE_EXPIRED;  // تنظیم به منقضی
-      return;  // خروج
-   }
-
-   // --- START: Calculate and Fix Offset Value --- (محاسبه ثابت افست در لحظه شناسایی برای جلوگیری از جابجایی)
-   // این بخش افست را ثابت می‌کند
-   if(m_placementMode == PLACEMENT_ATR)  // حالت ATR
-   {
-      double atr_buffer[];  // بافر ATR (دینامیک بدون اندازه ثابت)
-      ArraySetAsSeries(atr_buffer, true);  // تنظیم سری آرایه
-      if(CopyBuffer(m_atrHandle, 0, 1, 1, atr_buffer) > 0)  // کپی ATR فعلی (shift 1 برای کندل بسته)
+      // ایجاد هندل‌های ATR اختصاصی برای SL و تریلینگ
+      m_slAtrHandle = iATR(_Symbol, m_timeframe, m_slAtrPeriod);  // هندل SL ATR
+      m_trailingAtrHandle = iATR(_Symbol, m_timeframe, m_trailingAtrPeriod);  // هندل تریلینگ ATR
+      if(m_slAtrHandle == INVALID_HANDLE || m_trailingAtrHandle == INVALID_HANDLE)  // چک هندل‌ها
       {
-         m_fixedOffsetValue = atr_buffer[0] * m_atrMultiplier;  // محاسبه و ذخیره ثابت
+         CLogger::Log("خطا در ایجاد هندل‌های ATR برای رنج " + IntegerToString(m_rangeIndex), m_rangeIndex);  // چاپ خطا
+         return false;  // بازگشت شکست
       }
-      else  // شرط شکست کپی
+
+      // تنظیم نام اشیاء گرافیکی منحصربه‌فرد
+      m_rangeObjectName = "Range_" + IntegerToString(m_rangeIndex);  // نام مستطیل
+      m_buyLineName = "BuyLine_" + IntegerToString(m_rangeIndex);  // نام خط خرید
+      m_sellLineName = "SellLine_" + IntegerToString(m_rangeIndex);  // نام خط فروش
+
+      m_currentState = RANGE_WAITING;  // حالت اولیه انتظار
+      CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + " مقداردهی شد.", m_rangeIndex);  // چاپ موفقیت
+      return true;  // بازگشت موفقیت
+   }
+
+   // گرفتن تایم‌فریم اجرا (برای دسترسی خارجی مانند OnTick)
+   ENUM_TIMEFRAMES GetTimeframe() const { return m_timeframe; }  // بازگشت تایم‌فریم اجرا
+
+   // گرفتن تایم‌فریم فیلتر روند (برای فیلتر ایچیموکو)
+   ENUM_TIMEFRAMES GetTrendFilterTimeframe() const { return m_trendFilterTimeframe; }  // بازگشت تایم‌فریم فیلتر
+
+   // تنظیم تیکت فعال (برای بازیابی در OnInit)
+   void SetActiveTicket(ulong ticket) { m_activeTicket = ticket; }  // تنظیم تیکت
+
+   // تنظیم حالت فعلی (برای بازیابی یا کنترل خارجی)
+   void SetCurrentState(ENUM_RANGE_STATE state) { m_currentState = state; }  // تنظیم حالت
+
+   // گرفتن حالت فعلی (برای چک خارجی مانند OnTimer)
+   ENUM_RANGE_STATE GetCurrentState() const { return m_currentState; }  // بازگشت حالت
+
+   // تنظیم فلگ خروج پله‌ای (برای بازیابی)
+   void SetPartialClosedFlag(bool flag) { m_partialClosed = flag; }  // تنظیم فلگ پله‌ای
+
+   // (جدید) بازیابی وضعیت رنج (برای اصلاح باگ بازیابی ناقص پس از ری‌استارت)
+   // این تابع سطوح رنج و فاصله SL اولیه را بازگردانی می‌کند
+   void RestoreState(double range_high, double range_low, double initial_sl_distance)
+   {
+      m_rangeHigh = range_high;  // بازگردانی High
+      m_rangeLow = range_low;  // بازگردانی Low
+      m_initialSlDistance = initial_sl_distance;  // بازگردانی فاصله SL اولیه
+      CLogger::Log("وضعیت رنج " + IntegerToString(m_rangeIndex) + " با موفقیت بازیابی شد.", m_rangeIndex);  // لاگ موفقیت
+   }
+
+   // به‌روزرسانی ماشین حالت در کندل جدید: چک زمان، شناسایی رنج، شکست، تایید و غیره
+   // این تابع قلب ماشین حالت است
+   void UpdateOnNewBar()  // به‌روزرسانی در کندل جدید
+   {
+      // چک پاکسازی ابتدا (برای انقضا)
+      CheckCleanup();  // چک و پاکسازی اگر زمان رسیده
+
+      // محاسبه زمان رنج فعلی (با مدیریت DST و روزهای غیر معاملاتی)
+      if(!CTimeHelper::CalculateRangeTimes(m_startHour, m_startMinute, m_endHour, m_endMinute, m_rangeStartTime, m_rangeEndTime))  // محاسبه زمان
       {
-         CLogger::Log("خطا در گرفتن ATR برای تثبیت افست رنج " + IntegerToString(m_rangeIndex), m_rangeIndex);  // چاپ خطا
-         m_currentState = RANGE_EXPIRED;  // تنظیم به منقضی
+         CLogger::Log("خطا در محاسبه زمان رنج " + IntegerToString(m_rangeIndex), m_rangeIndex);  // چاپ خطا
          return;  // خروج
       }
-   }
-   else  // حالت درصد
-   {
-      m_fixedOffsetValue = (m_rangeHigh - m_rangeLow) * m_atrMultiplier / 100.0;  // محاسبه ثابت درصد
-   }
-   // --- END: Calculate and Fix Offset Value ---
 
-   // رسم مستطیل رنج اگر معتبر باشد با ObjectCreate
-   if(!ObjectCreate(0, m_rangeObjectName, OBJ_RECTANGLE, 0, startTime, m_rangeHigh, endTime, m_rangeLow))  // رسم مستطیل
-   {
-      CLogger::Log("خطا در رسم مستطیل رنج " + IntegerToString(m_rangeIndex) + ": " + IntegerToString(GetLastError()), m_rangeIndex);  // چاپ خطا
-   }
-   else  // شرط موفقیت رسم
-   {
-      ObjectSetInteger(0, m_rangeObjectName, OBJPROP_COLOR, m_color);  // تنظیم رنگ
-      ObjectSetInteger(0, m_rangeObjectName, OBJPROP_STYLE, STYLE_SOLID);  // تنظیم استایل
-      ObjectSetInteger(0, m_rangeObjectName, OBJPROP_WIDTH, 1);  // تنظیم عرض
-   }
-
-   m_lastInvalid = false;  // ریست فلگ نامعتبر
-   m_lastEndTime = endTime;  // ذخیره پایان
-   m_currentState = RANGE_IDENTIFIED;  // تغییر حالت به شناسایی‌شده
-   CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + " معتبر است. تغییر حالت به IDENTIFIED.", m_rangeIndex);  // چاپ دیباگ
-}
-
-// مسلح کردن رنج: استفاده از افست ثابت برای سطوح خرید/فروش و رسم خطوط
-// این تابع خطوط را رسم و cleanupTime را محاسبه می‌کند
-void CRange::ArmAndWait()  // تابع مسلح کردن
-{
-   CLogger::Log("مسلح کردن رنج " + IntegerToString(m_rangeIndex) + "...", m_rangeIndex);  // چاپ دیباگ برای مسلح کردن
-
-   // استفاده از افست ثابت محاسبه‌شده در شناسایی (برای جلوگیری از جابجایی خطوط)
-   // NormalizePrice برای دقت
-   m_potentialBuyPrice = NormalizePrice(m_rangeHigh + m_fixedOffsetValue);  // سطح خرید با افست ثابت
-   m_potentialSellPrice = NormalizePrice(m_rangeLow - m_fixedOffsetValue);  // سطح فروش با افست ثابت
-
-   datetime currentTime = TimeCurrent();  // زمان فعلی برای رسم خطوط
-   // رسم خط خرید با ObjectCreate
-   if(!ObjectCreate(0, m_buyLineName, OBJ_HLINE, 0, currentTime, m_potentialBuyPrice))  // رسم خط خرید
-   {
-      CLogger::Log("خطا در رسم خط BUY برای رنج " + IntegerToString(m_rangeIndex), m_rangeIndex);  // چاپ خطا
-   }
-   else  // شرط موفقیت
-   {
-      ObjectSetInteger(0, m_buyLineName, OBJPROP_COLOR, clrGreen);  // تنظیم رنگ سبز
-      ObjectSetInteger(0, m_buyLineName, OBJPROP_STYLE, STYLE_DASH);  // تنظیم استایل داش
-   }
-   // رسم خط فروش
-   if(!ObjectCreate(0, m_sellLineName, OBJ_HLINE, 0, currentTime, m_potentialSellPrice))  // رسم خط فروش
-   {
-      CLogger::Log("خطا در رسم خط SELL برای رنج " + IntegerToString(m_rangeIndex), m_rangeIndex);  // چاپ خطا
-   }
-   else  // شرط موفقیت
-   {
-      ObjectSetInteger(0, m_sellLineName, OBJPROP_COLOR, clrRed);  // تنظیم رنگ قرمز
-      ObjectSetInteger(0, m_sellLineName, OBJPROP_STYLE, STYLE_DASH);  // تنظیم استایل داش
-   }
-
-   // محاسبه زمان پاکسازی با CTimeHelper و m_rangeEndTime
-   m_cleanupTime = CTimeHelper::CalculateCleanupTime(m_rangeEndTime, m_cleanupHours);  // محاسبه زمان پاکسازی با استفاده از زمان پایان رنج
-
-   CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + " مسلح شد. Potential Buy: " + DoubleToString(m_potentialBuyPrice, _Digits) + ", Sell: " + DoubleToString(m_potentialSellPrice, _Digits), m_rangeIndex);  // چاپ دیباگ سطوح
-   m_currentState = ARMED_AND_WAITING;  // تغییر حالت به مسلح و انتظار
-}
-
-// انتظار برای کندل بریک: چک کلوز بالای/پایین افست برای شروع تایید ورود (بدون تایمر، فقط تنظیم حالت جدید)
-// این تابع شکست را بر اساس کلوز کندل قبلی چک می‌کند
-void CRange::WaitForBreakerCandle()  // تابع انتظار بریک
-{
-   // iClose کلوز کندل قبلی (shift 1) را برمی‌گرداند
-   double close1 = iClose(_Symbol, m_timeframe, 1);  // کلوز کندل قبلی
-   if(close1 == 0)  // چک مقدار معتبر
-   {
-      CLogger::Log("خطا: iClose مقدار نامعتبر برای رنج " + IntegerToString(m_rangeIndex), m_rangeIndex);  // چاپ خطا
-      return;  // خروج
-   }
-
-   if(close1 > m_potentialBuyPrice)  // چک شکست خرید
-   {
-      m_breakerCandleLevel = iHigh(_Symbol, m_timeframe, 1);  // سطح های کندل شکست
-      CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + " - BUY Breaker Candle detected! Level: " + DoubleToString(m_breakerCandleLevel, _Digits), m_rangeIndex);  // چاپ دیباگ
-      m_waitCounter = 0;  // ریست شمارنده برای حالت قدیمی
-      m_currentState = AWAITING_ENTRY_CONFIRMATION_BUY;  // تغییر حالت به انتظار ورود خرید
-   }
-   else if(close1 < m_potentialSellPrice)  // چک شکست فروش
-   {
-      m_breakerCandleLevel = iLow(_Symbol, m_timeframe, 1);  // سطح لو کندل شکست
-      CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + " - SELL Breaker Candle detected! Level: " + DoubleToString(m_breakerCandleLevel, _Digits), m_rangeIndex);  // چاپ دیباگ
-      m_waitCounter = 0;  // ریست شمارنده برای حالت قدیمی
-      m_currentState = AWAITING_ENTRY_CONFIRMATION_SELL;  // تغییر حالت به انتظار ورود فروش
-   }
-}
-
-// فرآیند تلاش ورود: چک ابطال بر اساس بازگشت قیمت، تایید قیمت و فیلتر روند، اجرای معامله اگر تایید شد (بدون محدودیت زمانی)
-// این تابع ابطال، تایید و ورود را مدیریت می‌کند
-void CRange::ProcessEntryAttempt()  // تابع فرآیند ورود
-{
-   // تشخیص جهت تلاش (خرید یا فروش) بر اساس حالت
-   bool isBuyAttempt = (m_currentState == AWAITING_ENTRY_CONFIRMATION_BUY);  // تشخیص جهت تلاش (خرید یا فروش)
-   double close1 = iClose(_Symbol, m_timeframe, 1);  // کلوز کندل قبلی برای چک ابطال و تایید
-   bool isInvalid = false;  // فلگ برای شرط ابطال (برای تمیزتر شدن کد)
-
-   // اگر حالت قدیمی (تایم‌اوت) انتخاب شده، چک شمارنده کندل‌ها
-   // این منطق فقط در CONFIRMATION_TIMEOUT فعال است
-   if(Inp_Confirmation_Strategy == CONFIRMATION_TIMEOUT)  // حالت قدیمی با تایمر
-   {
-      m_waitCounter++;  // افزایش شمارنده کندل‌ها
-      if(m_waitCounter >= Inp_Confirmation_Timeout)  // چک مهلت تمام شده
+      // چک اگر رنج فعلی قبلاً پردازش شده (برای جلوگیری از تکرار)
+      if(m_rangeEndTime == m_lastEndTime)  // چک پایان قبلی
       {
-         CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + ": مهلت تایید تمام شد. ابطال.", m_rangeIndex);  // چاپ دیباگ
-         ResetToArmedState();  // ریست به مسلح
-         return;  // خروج
+         return;  // خروج اگر تکراری
+      }
+
+      datetime now = TimeCurrent();  // زمان فعلی
+      switch(m_currentState)  // سوئیچ ماشین حالت
+      {
+         case RANGE_WAITING:  // انتظار شناسایی
+            if(now >= m_rangeStartTime && now < m_rangeEndTime)  // چک داخل رنج
+            {
+               if(IdentifyRange())  // شناسایی رنج
+               {
+                  m_currentState = RANGE_IDENTIFIED;  // تغییر به شناسایی شده
+                  DrawRangeRectangle();  // رسم مستطیل
+               }
+            }
+            break;
+
+         case RANGE_IDENTIFIED:  // شناسایی شده، منتظر شکست
+            if(now >= m_rangeEndTime)  // چک پایان رنج
+            {
+               m_currentState = AWAITING_BREAKOUT;  // تغییر به انتظار شکست
+               m_cleanupTime = CTimeHelper::CalculateCleanupTime(m_rangeEndTime, m_cleanupHours);  // محاسبه پاکسازی
+               CalculatePlacementLines();  // محاسبه و رسم سطوح شکست
+            }
+            else  // هنوز داخل رنج
+            {
+               UpdateRangeLevels();  // به‌روزرسانی High/Low اگر لازم
+            }
+            break;
+
+         case AWAITING_BREAKOUT:  // انتظار شکست
+            if(CheckBreakout())  // چک شکست
+            {
+               m_currentState = AWAITING_CONFIRMATION;  // تغییر به انتظار تایید
+               m_waitCounter = 0;  // ریست شمارنده
+               m_breakerCandleLevel = GetBreakerLevel();  // سطح بریک
+            }
+            break;
+
+         case AWAITING_CONFIRMATION:  // انتظار تایید
+            if(ConfirmPriceAndFilter())  // تایید قیمت و فیلتر
+            {
+               if(ExecuteTrade())  // ورود معامله
+               {
+                  m_currentState = MANAGING_TRADE;  // تغییر به مدیریت
+               }
+               else  // ورود شکست
+               {
+                  m_currentState = RANGE_EXPIRED;  // به منقضی
+               }
+            }
+            else if(CheckInvalidation())  // چک ابطال
+            {
+               m_currentState = RANGE_EXPIRED;  // به منقضی
+            }
+            break;
+
+         case MANAGING_TRADE:  // مدیریت معامله
+            // مدیریت در OnTimer انجام می‌شود
+            break;
+
+         case RANGE_EXPIRED:  // منقضی، منتظر پاکسازی
+            // پاکسازی در CheckCleanup مدیریت می‌شود
+            break;
       }
    }
 
-   // ۱. شرط ابطال و ریست (بر اساس انتخاب کاربر از Inp_Invalidation_Mode - فقط برای حالت جدید)
-   // این بخش ابطال را بر اساس استراتژی چک می‌کند
-   if(Inp_Confirmation_Strategy == CONFIRMATION_PRICE_INVALIDATION)  // حالت جدید با قیمت
+   // شناسایی رنج: پیدا کردن High/Low در بازه زمانی و چک حداقل/حداکثر
+   // iHighest/iLowest ایندکس‌ها را پیدا می‌کنند
+   bool IdentifyRange()  // شناسایی رنج
    {
-      if (Inp_Invalidation_Mode == INVALIDATION_RANGE_REENTRY)  // حالت صبور: بازگشت به داخل رنج اصلی
+      int startIdx = iBarShift(_Symbol, m_timeframe, m_rangeStartTime);  // ایندکس شروع
+      int endIdx = iBarShift(_Symbol, m_timeframe, m_rangeEndTime);  // ایندکس پایان
+      if(startIdx == -1 || endIdx == -1)  // چک ایندکس معتبر
       {
-         if (isBuyAttempt && close1 < m_rangeHigh) isInvalid = true;  // ابطال خرید اگر کلوز زیر سقف رنج
-         if (!isBuyAttempt && close1 > m_rangeLow) isInvalid = true;  // ابطال فروش اگر کلوز بالای کف رنج
-      }
-      else  // حالت تهاجمی: INVALIDATION_BREAKOUT_LINE_CROSS - عبور از خط شکست (افست)
-      {
-         if (isBuyAttempt && close1 < m_potentialBuyPrice) isInvalid = true;  // ابطال خرید اگر کلوز زیر خط خرید
-         if (!isBuyAttempt && close1 > m_potentialSellPrice) isInvalid = true;  // ابطال فروش اگر کلوز بالای خط فروش
+         CLogger::Log("خطا در پیدا کردن ایندکس بارها برای رنج " + IntegerToString(m_rangeIndex), m_rangeIndex);  // چاپ خطا
+         return false;  // شکست
       }
 
-      // اگر شرط ابطال برقرار بود، ریست کن و از تابع خارج شو
-      if (isInvalid)  // چک فلگ ابطال
+      int highIdx = iHighest(_Symbol, m_timeframe, MODE_HIGH, startIdx - endIdx + 1, endIdx);  // ایندکس سقف
+      int lowIdx = iLowest(_Symbol, m_timeframe, MODE_LOW, startIdx - endIdx + 1, endIdx);  // ایندکس کف
+      m_rangeHigh = iHigh(_Symbol, m_timeframe, highIdx);  // سقف
+      m_rangeLow = iLow(_Symbol, m_timeframe, lowIdx);  // کف
+
+      double rangeHeight = (m_rangeHigh - m_rangeLow) / _Point;  // ارتفاع به پوینت
+      if(rangeHeight < m_minRangePoints || rangeHeight > m_maxRangePoints)  // چک محدوده
       {
-         ResetToArmedState();  // ریست به حالت مسلح بدون حذف مسیرها
-         return;  // خروج از تابع
+         if(!m_lastInvalid)  // جلوگیری از لاگ تکراری
+         {
+            CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + " نامعتبر: ارتفاع=" + DoubleToString(rangeHeight, 0) + " پوینت", m_rangeIndex);  // لاگ نامعتبر
+            m_lastInvalid = true;  // تنظیم فلگ
+         }
+         return false;  // شکست
+      }
+
+      m_lastInvalid = false;  // ریست فلگ
+      CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + " شناسایی شد: High=" + DoubleToString(m_rangeHigh, _Digits) + ", Low=" + DoubleToString(m_rangeLow, _Digits), m_rangeIndex);  // لاگ موفقیت
+      return true;  // موفقیت
+   }
+
+   // به‌روزرسانی سطوح رنج: چک کندل جدید برای به‌روزرسانی High/Low داخل رنج
+   void UpdateRangeLevels()  // به‌روزرسانی سطوح
+   {
+      double currentHigh = iHigh(_Symbol, m_timeframe, 1);  // های کندل قبلی
+      double currentLow = iLow(_Symbol, m_timeframe, 1);  // لو کندل قبلی
+      if(currentHigh > m_rangeHigh) m_rangeHigh = currentHigh;  // به‌روزرسانی سقف
+      if(currentLow < m_rangeLow) m_rangeLow = currentLow;  // به‌روزرسانی کف
+      DrawRangeRectangle();  // بازرسم مستطیل
+   }
+
+   // رسم مستطیل رنج: نمایش گرافیکی رنج با ObjectCreate
+   void DrawRangeRectangle()  // رسم مستطیل
+   {
+      ObjectCreate(0, m_rangeObjectName, OBJ_RECTANGLE, 0, m_rangeStartTime, m_rangeHigh, m_rangeEndTime, m_rangeLow);  // ایجاد مستطیل
+      ObjectSetInteger(0, m_rangeObjectName, OBJPROP_COLOR, m_color);  // رنگ
+      ObjectSetInteger(0, m_rangeObjectName, OBJPROP_STYLE, STYLE_SOLID);  // استایل
+      ObjectSetInteger(0, m_rangeObjectName, OBJPROP_FILL, true);  // پر کردن
+      ChartRedraw();  // redraw چارت
+   }
+
+   // محاسبه سطوح شکست: افست بر اساس ATR یا درصد و رسم خطوط
+   void CalculatePlacementLines()  // محاسبه سطوح شکست
+   {
+      double offset = CalculatePlacementOffset();  // محاسبه افست
+      if(offset <= 0) return;  // خروج اگر نامعتبر
+
+      m_potentialBuyPrice = m_rangeHigh + offset;  // سطح خرید
+      m_potentialSellPrice = m_rangeLow - offset;  // سطح فروش
+
+      // رسم خطوط افقی برای سطوح شکست
+      ObjectCreate(0, m_buyLineName, OBJ_HLINE, 0, 0, m_potentialBuyPrice);  // خط خرید
+      ObjectSetInteger(0, m_buyLineName, OBJPROP_COLOR, clrGreen);  // رنگ سبز
+      ObjectCreate(0, m_sellLineName, OBJ_HLINE, 0, 0, m_potentialSellPrice);  // خط فروش
+      ObjectSetInteger(0, m_sellLineName, OBJPROP_COLOR, clrRed);  // رنگ قرمز
+      ChartRedraw();  // redraw
+      CLogger::Log("سطوح شکست برای رنج " + IntegerToString(m_rangeIndex) + " محاسبه شد: Buy=" + DoubleToString(m_potentialBuyPrice, _Digits) + ", Sell=" + DoubleToString(m_potentialSellPrice, _Digits), m_rangeIndex);  // لاگ
+   }
+
+   // محاسبه افست شکست: بر اساس حالت (ATR یا درصد ارتفاع رنج)
+   double CalculatePlacementOffset()  // محاسبه افست
+   {
+      if(m_placementMode == PLACEMENT_ATR)  // حالت ATR
+      {
+         double atr = GetCachedATR();  // ATR کش‌شده
+         return atr * m_atrMultiplier;  // افست
+      }
+      else  // حالت درصد
+      {
+         double rangeHeight = m_rangeHigh - m_rangeLow;  // ارتفاع
+         return rangeHeight * (m_atrMultiplier / 100.0);  // افست درصد (توجه: atrMultiplier به عنوان درصد استفاده می‌شود)
       }
    }
 
-   // ۲. چک کردن شرایط ورود
-   // الف) تاییدیه قیمت (اختیاری: چک کلوز بالای/پایین سطح بریک)
-   // Inp_PriceConfirmation_Enabled اختیاری است
-   bool priceConfirmed = !Inp_PriceConfirmation_Enabled ||  // اگر تایید قیمت خاموش، همیشه درست
-                         (isBuyAttempt ? (close1 > m_breakerCandleLevel) : (close1 < m_breakerCandleLevel));  // چک تایید بر اساس جهت
-
-   if(!priceConfirmed) return;  // اگر تایید قیمت لازم بود و نگرفتیم، منتظر کندل بعدی بمون
-
-   // ب) تاییدیه فیلتر ایچیموکو (به صورت دینامیک و بدون محدودیت زمانی)
-   // g_trendFilter.GetTrendDirection دینامیک است
-   ENUM_TREND_DIRECTION currentTrend = g_trendFilter.GetTrendDirection(m_trendFilterTimeframe);  // گرفتن جهت روند فعلی
-   bool filterConfirmed = !Inp_IchimokuFilter_Enabled ||  // اگر فیلتر خاموش، همیشه درست
-                          (isBuyAttempt && (currentTrend == TREND_BUY || currentTrend == TREND_NEUTRAL)) ||  // چک برای خرید
-                          (!isBuyAttempt && (currentTrend == TREND_SELL || currentTrend == TREND_NEUTRAL));  // چک برای فروش
-
-   // ۳. اجرای معامله اگر فیلتر تایید شد
-   if(filterConfirmed)  // چک تایید فیلتر
+   // چک شکست: بررسی قیمت فعلی برای عبور از سطوح شکست
+   bool CheckBreakout()  // چک شکست
    {
-      ExecuteTrade(isBuyAttempt);  // اجرای معامله با پارامتر جهت (برای تشخیص خرید/فروش)
-   }
-}
+      double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);  // قیمت Bid
+      double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);  // قیمت Ask
 
-// ریست به حالت مسلح: ریست سطح بریک بدون حذف خطوط گرافیکی یا مسیرها (برای حفظ فرصت‌ها)
-// این تابع برای ابطال موقت استفاده می‌شود
-void CRange::ResetToArmedState()  // تابع ریست
-{
-   CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + ": شرط ابطال رخ داد. ریست به حالت مسلح.", m_rangeIndex);  // چاپ دیباگ برای ابطال
-   m_breakerCandleLevel = 0;  // پاک کردن سطح کندل شکننده
-   m_waitCounter = 0;  // ریست شمارنده برای حالت بعدی
-   m_currentState = ARMED_AND_WAITING;  // ریست حالت به مسلح و انتظار
-   // نکته کلیدی: هیچ خط گرافیکی یا مسیری اینجا حذف نمی‌شود تا فرصت دوباره شکل گیرد
-}
-
-// اجرای معامله: محاسبه SL بر اساس SL strategy جدید (base point + بافر)، حجم و ارسال سفارش بازار (با پارامتر isBuy برای تشخیص جهت)
-// این تابع معامله را با تمام چک‌ها باز می‌کند
-void CRange::ExecuteTrade(bool isBuy)  // تابع اجرای معامله
-{
-   // قیمت ورود فعلی (ASK برای خرید، BID برای فروش)
-   double entryPrice = isBuy ? SymbolInfoDouble(_Symbol, SYMBOL_ASK) : SymbolInfoDouble(_Symbol, SYMBOL_BID);  // قیمت ورود فعلی (ASK برای خرید، BID برای فروش)
-   double adjustment;  // بافر SL
-
-   // چک حالت ATR برای بافر SL
-   if(m_slCalcMode == SL_CALC_ATR)  // چک حالت ATR برای بافر SL
-   {
-      double atr_buffer[];  // آرایه ATR (دینامیک بدون اندازه ثابت)
-      ArraySetAsSeries(atr_buffer, true);  // تنظیم سری آرایه
-      if(CopyBuffer(m_slAtrHandle, 0, 1, 1, atr_buffer) <= 0)  // کپی بافر (shift 1)
+      if(bid > m_potentialBuyPrice)  // شکست خرید
       {
-         CLogger::Log("خطا در گرفتن ATR برای SL رنج " + IntegerToString(m_rangeIndex) + ": " + IntegerToString(GetLastError()), m_rangeIndex);  // چاپ خطا
-         return;  // خروج
+         DeactivateSellPath();  // غیرفعال فروش (OCO)
+         CLogger::Log("شکست خرید شناسایی شد برای رنج " + IntegerToString(m_rangeIndex), m_rangeIndex);  // لاگ
+         return true;  // موفقیت
       }
-      adjustment = atr_buffer[0] * m_slAtrMultiplier;  // محاسبه بافر ATR
+      else if(ask < m_potentialSellPrice)  // شکست فروش
+      {
+         DeactivateBuyPath();  // غیرفعال خرید (OCO)
+         CLogger::Log("شکست فروش شناسایی شد برای رنج " + IntegerToString(m_rangeIndex), m_rangeIndex);  // لاگ
+         return true;  // موفقیت
+      }
+      return false;  // بدون شکست
    }
-   else  // حالت درصد
+
+   // گرفتن سطح کندل شکننده: برای تایید قیمت (های/لو کندل قبلی)
+   double GetBreakerLevel()  // سطح بریک
    {
-      adjustment = (m_rangeHigh - m_rangeLow) * m_slAtrMultiplier / 100.0;  // محاسبه بافر درصد
+      if(m_potentialBuyPrice > 0)  // خرید
+         return iHigh(_Symbol, m_timeframe, 1);  // های قبلی
+      else  // فروش
+         return iLow(_Symbol, m_timeframe, 1);  // لو قبلی
    }
 
-   // انتخاب base point بر اساس SL strategy
-   double basePoint;  // پایه SL
-   if(m_slStrategy == SL_OPPOSITE_SIDE)  // حالت مقابل رنج
+   // تایید قیمت و فیلتر روند: چک بسته شدن بالای/پایین سطح بریک و هم‌جهت بودن روند
+   bool ConfirmPriceAndFilter()  // تایید
    {
-      basePoint = isBuy ? m_rangeLow : m_rangeHigh;  // مقابل رنج برای BUY/SELL
+      if(!Inp_PriceConfirmation_Enabled)  // اگر تایید خاموش
+         return CheckTrendFilter();  // مستقیم به فیلتر
+
+      double close = iClose(_Symbol, m_timeframe, 1);  // کلوز قبلی
+      if(m_potentialBuyPrice > 0 && close > m_breakerCandleLevel)  // تایید خرید
+         return CheckTrendFilter();  // به فیلتر
+      else if(m_potentialSellPrice > 0 && close < m_breakerCandleLevel)  // تایید فروش
+         return CheckTrendFilter();  // به فیلتر
+
+      if(Inp_Confirmation_Strategy == CONFIRMATION_TIMEOUT)  // حالت تایمر
+      {
+         m_waitCounter++;  // افزایش شمارنده
+         if(m_waitCounter > Inp_Confirmation_Timeout)  // تایم‌اوت
+         {
+            CLogger::Log("تایم‌اوت تایید برای رنج " + IntegerToString(m_rangeIndex), m_rangeIndex);  // لاگ
+            return false;  // شکست
+         }
+      }
+      return false;  // بدون تایید
    }
-   else  // SL_BREAKOUT_LEVEL - سطح شکست
+
+   // چک فیلتر روند: اگر فیلتر فعال، چک جهت یا خنثی
+   bool CheckTrendFilter()  // فیلتر روند
    {
-      basePoint = isBuy ? m_rangeHigh : m_rangeLow;  // سطح شکست برای BUY/SELL
+      if(!Inp_IchimokuFilter_Enabled) return true;  // اگر خاموش، مجاز
+
+      datetime currentBarTime = iTime(_Symbol, m_trendFilterTimeframe, 0);  // زمان بار فیلتر
+      if(currentBarTime == m_lastFilterBarTime) return false;  // جلوگیری از چک تکراری
+      m_lastFilterBarTime = currentBarTime;  // ذخیره زمان
+
+      ENUM_TREND_DIRECTION trend = g_trendFilter.GetTrendDirection(m_trendFilterTimeframe);  // جهت
+      if(m_potentialBuyPrice > 0)  // خرید
+         return (trend == TREND_BUY || trend == TREND_NEUTRAL);  // مجاز اگر خرید یا خنثی
+      else if(m_potentialSellPrice > 0)  // فروش
+         return (trend == TREND_SELL || trend == TREND_NEUTRAL);  // مجاز اگر فروش یا خنثی
+
+      CLogger::Log("فیلتر روند رد کرد برای رنج " + IntegerToString(m_rangeIndex), m_rangeIndex);  // لاگ رد
+      return false;  // رد
    }
 
-   // محاسبه SL بر اساس base point با NormalizePrice
-   double slPrice = isBuy ? NormalizePrice(basePoint - adjustment) : NormalizePrice(basePoint + adjustment);  // قیمت SL نرمالایز شده
-   double slDistance = MathAbs(entryPrice - slPrice);  // فاصله SL از ورود
-
-   // سطح حداقل فاصله از SYMBOL_TRADE_STOPS_LEVEL
-   long stops_level = SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL);  // سطح حداقل فاصله
-   double minStop = stops_level * _Point + _Point;  // حداقل فاصله با بافر
-   if(slDistance <= 0 || slDistance < minStop)  // چک فاصله معتبر
+   // چک ابطال: بر اساس استراتژی (بازگشت به رنج یا عبور از خط شکست)
+   bool CheckInvalidation()  // ابطال
    {
-      CLogger::Log("خطا: slDistance نامعتبر یا کمتر از حداقل فاصله مجاز برای رنج " + IntegerToString(m_rangeIndex) + " (slDistance=" + DoubleToString(slDistance, _Digits) + ")", m_rangeIndex);  // چاپ خطا
-      m_currentState = RANGE_EXPIRED;  // تنظیم به منقضی
-      return;  // خروج
+      double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);  // Bid
+      double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);  // Ask
+
+      if(Inp_Invalidation_Mode == INVALIDATION_RANGE_REENTRY)  // حالت صبور
+      {
+         if(m_potentialBuyPrice > 0 && bid < m_rangeHigh) return true;  // بازگشت به رنج خرید
+         if(m_potentialSellPrice > 0 && ask > m_rangeLow) return true;  // بازگشت به رنج فروش
+      }
+      else  // حالت تهاجمی
+      {
+         if(m_potentialBuyPrice > 0 && bid < m_potentialBuyPrice) return true;  // عبور از خط خرید
+         if(m_potentialSellPrice > 0 && ask > m_potentialSellPrice) return true;  // عبور از خط فروش
+      }
+      return false;  // بدون ابطال
    }
 
-   CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + ": SL Strategy=" + EnumToString(m_slStrategy) + ", slDistance=" + DoubleToString(slDistance, _Digits) + ", slPrice=" + DoubleToString(slPrice, _Digits), m_rangeIndex);  // چاپ دیباگ SL
-
-   // محاسبه حجم با CRiskManager
-   double lotSize = CRiskManager::CalculateLotSize(InpRiskPercent, slDistance);  // محاسبه حجم بر اساس ریسک
-   if(lotSize == 0)  // چک حجم معتبر
+   // ورود معامله: محاسبه حجم، SL و ارسال معامله
+   bool ExecuteTrade()  // ورود
    {
-      CLogger::Log("خطا در محاسبه حجم برای رنج " + IntegerToString(m_rangeIndex), m_rangeIndex);  // چاپ خطا
-      m_currentState = RANGE_EXPIRED;  // تنظیم به منقضی
-      return;  // خروج
+      ENUM_POSITION_TYPE tradeType = m_potentialBuyPrice > 0 ? POSITION_TYPE_BUY : POSITION_TYPE_SELL;  // نوع معامله
+      double entryPrice = tradeType == POSITION_TYPE_BUY ? SymbolInfoDouble(_Symbol, SYMBOL_ASK) : SymbolInfoDouble(_Symbol, SYMBOL_BID);  // قیمت ورود
+      double sl = CalculateSL(tradeType, entryPrice);  // محاسبه SL
+      double slDistance = MathAbs(entryPrice - sl);  // فاصله SL
+      m_initialSlDistance = slDistance;  // ذخیره فاصله اولیه برای بازیابی
+      double lotSize = CRiskManager::CalculateLotSize(InpRiskPercent, slDistance);  // حجم بر اساس ریسک
+      if(lotSize <= 0) return false;  // خروج اگر حجم نامعتبر
+
+      CTrade trade;  // نمونه معامله
+      trade.SetExpertMagicNumber(m_magic);  // تنظیم مجیک
+
+      string trade_comment = StringFormat("R%d;H:%.5f;L:%.5f;SLD:%.5f", 
+                                          m_rangeIndex, m_rangeHigh, m_rangeLow, m_initialSlDistance);  // کامنت با اطلاعات برای بازیابی
+
+      if(tradeType == POSITION_TYPE_BUY)  // خرید
+      {
+         if(!trade.PositionOpen(_Symbol, ORDER_TYPE_BUY, lotSize, 0, sl, 0, trade_comment))  // باز کردن خرید
+         {
+            CLogger::Log("خطا در باز کردن خرید برای رنج " + IntegerToString(m_rangeIndex) + ": " + IntegerToString(trade.ResultRetcode()), m_rangeIndex);  // لاگ خطا
+            return false;  // شکست
+         }
+      }
+      else  // فروش
+      {
+         if(!trade.PositionOpen(_Symbol, ORDER_TYPE_SELL, lotSize, 0, sl, 0, trade_comment))  // باز کردن فروش
+         {
+            CLogger::Log("خطا در باز کردن فروش برای رنج " + IntegerToString(m_rangeIndex) + ": " + IntegerToString(trade.ResultRetcode()), m_rangeIndex);  // لاگ خطا
+            return false;  // شکست
+         }
+      }
+
+      m_activeTicket = trade.ResultDeal();  // ذخیره تیکت (توجه: در MT5 تیکت POSITION_TICKET است)
+      m_slToBeMoved = false;  // ریست فلگ SL
+      m_partialClosed = false;  // ریست فلگ پله‌ای
+      CLogger::Log("معامله باز شد برای رنج " + IntegerToString(m_rangeIndex) + ". تیکت: " + (string)m_activeTicket, m_rangeIndex);  // لاگ موفقیت
+      return true;  // موفقیت
    }
 
-   CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + ": lotSize=" + DoubleToString(lotSize, 2), m_rangeIndex);  // چاپ دیباگ حجم
-
-   // --- START: Margin Pre-validation --- (چک پیش-اعتبارسنجی مارجین برای جلوگیری از معامله بدون مارجین کافی)
-   double margin_required;  // متغیر برای مارجین مورد نیاز
-   // OrderCalcMargin مارجین را محاسبه می‌کند
-   if(!OrderCalcMargin(isBuy ? ORDER_TYPE_BUY : ORDER_TYPE_SELL, _Symbol, lotSize, entryPrice, margin_required))  // محاسبه مارجین
+   // محاسبه SL: بر اساس استراتژی و حالت بافر
+   double CalculateSL(ENUM_POSITION_TYPE type, double entry)  // محاسبه SL
    {
-      CLogger::Log("خطا در محاسبه مارجین برای رنج " + IntegerToString(m_rangeIndex) + ". معامله لغو شد.", m_rangeIndex);  // چاپ خطا
-      m_currentState = RANGE_EXPIRED;  // تنظیم به منقضی
-      return;  // خروج
+      double baseSL = (type == POSITION_TYPE_BUY) ? 
+                      (m_slStrategy == SL_OPPOSITE_SIDE ? m_rangeLow : m_rangeHigh) : 
+                      (m_slStrategy == SL_OPPOSITE_SIDE ? m_rangeHigh : m_rangeLow);  // پایه SL
+
+      double buffer = (m_slCalcMode == SL_CALC_ATR) ? GetSlATR() * m_slAtrMultiplier : (m_rangeHigh - m_rangeLow) * (m_slAtrMultiplier / 100.0);  // بافر
+
+      return (type == POSITION_TYPE_BUY) ? NormalizeDouble(baseSL - buffer, _Digits) : NormalizeDouble(baseSL + buffer, _Digits);  // SL نهایی
    }
-   // AccountInfoDouble مارجین آزاد را برمی‌گرداند
-   if(margin_required > AccountInfoDouble(ACCOUNT_MARGIN_FREE))  // چک مارجین کافی
-   {
-      CLogger::Log("مارجین کافی نیست. نیاز: " + DoubleToString(margin_required, 2) + ", موجود: " + DoubleToString(AccountInfoDouble(ACCOUNT_MARGIN_FREE), 2), m_rangeIndex);  // چاپ خطا
-      m_currentState = RANGE_EXPIRED;  // تنظیم به منقضی
-      return;  // خروج
-   }
-   // --- END: Margin Pre-validation ---
 
-   // نمونه CTrade برای ارسال سفارش
-   CTrade trade;  // نمونه کلاس معامله
-   MqlTradeRequest request;  // درخواست معامله
-   MqlTradeResult result;  // نتیجه معامله
-   ZeroMemory(request);  // صفر کردن درخواست
-   request.action = TRADE_ACTION_DEAL;  // عمل معامله بازار
-   request.symbol = _Symbol;  // نماد
-   request.volume = lotSize;  // حجم
-   request.type = isBuy ? ORDER_TYPE_BUY : ORDER_TYPE_SELL;  // نوع سفارش
-   request.price = entryPrice;  // استفاده از قیمت لحظه‌ای برای سفارش بازار
-   request.sl = slPrice;  // SL
-   request.tp = 0.0;  // TP به 0.0 برای حذف حد سود اولیه (اجازه روند ادامه)
-   request.magic = m_magicNumber;  // مجیک
-   request.comment = (isBuy ? "Buy" : "Sell") + " Range " + IntegerToString(m_rangeIndex);  // کامنت
-   request.deviation = 10;  // انحراف مجاز
-   // OrderSend درخواست را ارسال می‌کند
-   if(!trade.OrderSend(request, result) || result.deal == 0)  // ارسال سفارش
-   {
-      CLogger::Log("خطا در باز کردن معامله برای رنج " + IntegerToString(m_rangeIndex) + ": " + IntegerToString(result.retcode), m_rangeIndex);  // چاپ خطا
-      m_currentState = RANGE_EXPIRED;  // تنظیم به منقضی
-      return;  // خروج
-   }
-   m_activeTicket = result.deal;  // ذخیره تیکت
-
-   CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + " - " + (isBuy ? "BUY" : "SELL") + " Trade Opened! Ticket: " + (string)m_activeTicket, m_rangeIndex);  // چاپ موفقیت
-
-   DisableOppositePath(isBuy);  // غیرفعال کردن مسیر مخالف برای OCO
-   m_currentState = MANAGING_TRADE;  // تغییر حالت به مدیریت
-}
-
-// غیرفعال کردن مسیر مخالف: حذف خط و ریست قیمت بالقوه برای جلوگیری از سیگنال دوگانه
-// این تابع OCO را شبیه‌سازی می‌کند
-void CRange::DisableOppositePath(bool isBuy)  // تابع غیرفعال کردن
-{
-   if(isBuy)  // برای خرید
+   // غیرفعال کردن مسیر فروش (OCO): ریست قیمت و حذف خط
+   void DeactivateSellPath()  // غیرفعال فروش
    {
       m_potentialSellPrice = 0;  // ریست قیمت فروش
       ObjectDelete(0, m_sellLineName);  // حذف خط فروش
-      CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + " - SELL path deactivated (OCO).", m_rangeIndex);  // چاپ دیباگ
+      CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + " - SELL path deactivated (OCO).", m_rangeIndex);  // لاگ
    }
-   else  // برای فروش
+
+   // غیرفعال کردن مسیر خرید (OCO): ریست قیمت و حذف خط
+   void DeactivateBuyPath()  // غیرفعال خرید
    {
       m_potentialBuyPrice = 0;  // ریست قیمت خرید
       ObjectDelete(0, m_buyLineName);  // حذف خط خرید
-      CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + " - BUY path deactivated (OCO).", m_rangeIndex);  // چاپ دیباگ
-   }
-}
-
-// مدیریت معامله فعال: چک سود برای خروج پله‌ای، انتقال SL به ورود و اعمال تریلینگ (فقط اگر پله‌ای انجام شده)
-// تغییرات نسخه 2.00: محاسبه سود بر اساس قیمت، بافر در ریسک-فری، اجرای مرحله‌ای با return
-void CRange::ManageActiveTrade()  // تابع مدیریت معامله
-{
-   // PositionSelectByTicket پوزیشن را انتخاب می‌کند
-   if(!PositionSelectByTicket(m_activeTicket))  // چک انتخاب پوزیشن
-   {
-      CLogger::Log("پوزیشن با تیکت " + (string)m_activeTicket + " بسته شده یا یافت نشد. ریست رنج.", m_rangeIndex);  // چاپ دیباگ
-      m_activeTicket = 0;  // ریست تیکت
-      m_partialClosed = false;  // ریست فلگ پله‌ای
-      m_slToBeMoved = false;  // ریست فلگ SL
-      m_currentState = RANGE_EXPIRED;  // تنظیم به منقضی
-      return;  // خروج
+      CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + " - BUY path deactivated (OCO).", m_rangeIndex);  // لاگ
    }
 
-   // --- محاسبات اولیه ---
-   // PositionGetInteger نوع را برمی‌گرداند
-   ENUM_POSITION_TYPE posType = (ENUM_POSITION_TYPE)PositionGetInteger(POSITION_TYPE);  // نوع پوزیشن
-   double entryPrice = PositionGetDouble(POSITION_PRICE_OPEN);  // قیمت ورود
-   double sl = PositionGetDouble(POSITION_SL);  // SL فعلی
-   // قیمت فعلی بر اساس نوع
-   double currentPrice = (posType == POSITION_TYPE_BUY) ? SymbolInfoDouble(_Symbol, SYMBOL_BID) : SymbolInfoDouble(_Symbol, SYMBOL_ASK);  // قیمت فعلی
-
-   // --- مرحله 1: چک خروج پله‌ای ---
-   if(!m_partialClosed)  // چک فلگ پله‌ای
+   // مدیریت معامله فعال: چک سود برای خروج پله‌ای، انتقال SL به ورود و اعمال تریلینگ (فقط اگر پله‌ای انجام شده)
+   // تغییرات نسخه 2.00: محاسبه سود بر اساس قیمت، بافر در ریسک-فری، اجرای مرحله‌ای با return
+   // تغییرات نسخه 2.1: اصلاح Race Condition با ریست m_slToBeMoved حتی در شکست، استفاده از m_initialSlDistance برای riskDistance
+   void ManageActiveTrade()  // مدیریت معامله
    {
-      // محاسبه صحیح سود بر اساس حرکت قیمت (نه دلار، برای دقت)
-      double currentProfitInPrice = (posType == POSITION_TYPE_BUY) ? (currentPrice - entryPrice) : (entryPrice - currentPrice);  // محاسبه صحیح سود بر اساس حرکت قیمت
-      double riskDistance = MathAbs(entryPrice - sl);  // فاصله ریسک اولیه
-      if(riskDistance == 0) return;  // جلوگیری از خطای تقسیم بر صفر
-      double targetProfitInPrice = riskDistance * m_rrRatio;  // سود هدف برای پله‌ای
-
-      if(currentProfitInPrice >= targetProfitInPrice)  // چک رسیدن به RR
+      if(!PositionSelectByTicket(m_activeTicket))  // چک انتخاب پوزیشن
       {
-         double volume = PositionGetDouble(POSITION_VOLUME);  // حجم فعلی
-         double closeVolume = MathFloor((volume * m_partialClosePercent / 100.0) / g_volumeStep) * g_volumeStep;  // حجم پله‌ای راند پایین
-         
-         if(closeVolume >= g_volumeMin && closeVolume < volume)  // چک حجم معتبر
+         CLogger::Log("پوزیشن با تیکت " + (string)m_activeTicket + " بسته شده یا یافت نشد. ریست رنج.", m_rangeIndex);  // لاگ بسته شدن
+         m_activeTicket = 0;  // ریست تیکت
+         m_partialClosed = false;  // ریست فلگ پله‌ای
+         m_slToBeMoved = false;  // ریست فلگ SL
+         SoftCleanup();  // ریست فوری با منطق جدید (اصلاح بلوپرینت)
+         return;  // خروج
+      }
+
+      // --- محاسبات اولیه ---
+      ENUM_POSITION_TYPE posType = (ENUM_POSITION_TYPE)PositionGetInteger(POSITION_TYPE);  // نوع پوزیشن
+      double entryPrice = PositionGetDouble(POSITION_PRICE_OPEN);  // قیمت ورود
+      double sl = PositionGetDouble(POSITION_SL);  // SL فعلی
+      // قیمت فعلی بر اساس نوع
+      double currentPrice = (posType == POSITION_TYPE_BUY) ? SymbolInfoDouble(_Symbol, SYMBOL_BID) : SymbolInfoDouble(_Symbol, SYMBOL_ASK);  // قیمت فعلی
+
+      // --- مرحله 1: چک خروج پله‌ای ---
+      if(!m_partialClosed)  // چک فلگ پله‌ای
+      {
+         // محاسبه صحیح سود بر اساس حرکت قیمت (نه دلار، برای دقت)
+         double currentProfitInPrice = (posType == POSITION_TYPE_BUY) ? (currentPrice - entryPrice) : (entryPrice - currentPrice);  // محاسبه سود
+         if(m_initialSlDistance == 0) return;  // جلوگیری از خطای تقسیم بر صفر (اصلاح بازیابی)
+         double targetProfitInPrice = m_initialSlDistance * m_rrRatio;  // سود هدف برای پله‌ای
+
+         if(currentProfitInPrice >= targetProfitInPrice)  // چک رسیدن به RR
          {
-            CLogger::Log("رسیدن به RR. تلاش برای خروج پله‌ای با حجم " + DoubleToString(closeVolume, 2), m_rangeIndex);  // لاگ تلاش
-            if(CTradeManager::PartialClose(m_activeTicket, closeVolume))  // بستن پله‌ای
+            double volume = PositionGetDouble(POSITION_VOLUME);  // حجم فعلی
+            double closeVolume = MathFloor((volume * m_partialClosePercent / 100.0) / g_volumeStep) * g_volumeStep;  // حجم پله‌ای راند پایین
+            
+            if(closeVolume >= g_volumeMin && closeVolume < volume)  // چک حجم معتبر
             {
-               m_partialClosed = true;  // تنظیم فلگ
-               m_slToBeMoved = true;  // تنظیم فلگ برای انتقال SL
+               CLogger::Log("رسیدن به RR. تلاش برای خروج پله‌ای با حجم " + DoubleToString(closeVolume, 2), m_rangeIndex);  // لاگ تلاش
+               if(CTradeManager::PartialClose(m_activeTicket, closeVolume))  // بستن پله‌ای
+               {
+                  m_partialClosed = true;  // تنظیم فلگ
+                  m_slToBeMoved = true;  // تنظیم فلگ برای انتقال SL
+               }
+               return;  // خروج برای اجرای مرحله بعدی در تیک بعدی تایمر
             }
-            return;  // <<<<<< خروج برای اجرای مرحله بعدی در تیک بعدی تایمر
          }
       }
 
-   }
-
-   // --- مرحله 2: انتقال SL به نقطه ورود (ریسک-فری) ---
-   if(m_partialClosed && m_slToBeMoved)  // چک فلگ‌ها
-   {
-      // اضافه کردن بافر برای پوشش هزینه‌ها و جلوگیری از خطای Invalid Stops
-      double breakEvenBuffer = _Point * 3;  // بافر 3 پوینتی (قابل تنظیم)
-      double newSL = (posType == POSITION_TYPE_BUY) ? entryPrice + breakEvenBuffer : entryPrice - breakEvenBuffer;  // SL جدید با بافر
-      
-      CLogger::Log("تلاش برای ریسک-فری کردن معامله. SL جدید: " + DoubleToString(newSL, _Digits), m_rangeIndex);  // لاگ تلاش
-      if(CTradeManager::MoveSLToBreakEven(m_activeTicket, newSL))  // انتقال به ورود با بافر
+      // --- مرحله 2: انتقال SL به نقطه ورود (ریسک-فری) ---
+      if(m_partialClosed && m_slToBeMoved)  // چک فلگ‌ها
       {
-         m_slToBeMoved = false;  // فلگ فقط در صورت موفقیت ریست می‌شود
+         // اضافه کردن بافر برای پوشش هزینه‌ها و جلوگیری از خطای Invalid Stops
+         double breakEvenBuffer = _Point * 3;  // بافر 3 پوینتی (قابل تنظیم)
+         double newSL = (posType == POSITION_TYPE_BUY) ? entryPrice + breakEvenBuffer : entryPrice - breakEvenBuffer;  // SL جدید با بافر
+         
+         CLogger::Log("تلاش برای ریسک-فری کردن معامله. SL جدید: " + DoubleToString(newSL, _Digits), m_rangeIndex);  // لاگ تلاش
+         if(!CTradeManager::MoveSLToBreakEven(m_activeTicket, newSL))  // انتقال به ورود با بافر (اگر شکست)
+         {
+            CLogger::Log("انتقال SL به نقطه ورود ناموفق بود. ادامه به مرحله تریلینگ...", m_rangeIndex);  // لاگ شکست (اصلاح Race Condition)
+         }
+         m_slToBeMoved = false;  // فلگ را در هر صورت ریست کن (اصلاح Race Condition)
+         return;  // خروج برای اجرای مرحله بعدی در تیک بعدی تایمر
       }
-      return;  // <<<<<< خروج برای اجرای مرحله بعدی در تیک بعدی تایمر
-   }
 
-   // --- مرحله 3: فعال‌سازی تریلینگ استاپ ---
-   if(m_partialClosed && !m_slToBeMoved)  // چک پس از پله‌ای و BE
-   {
-      // فراخوانی تریلینگ با تمام پارامترها
-      CTradeManager::TrailingStop(m_activeTicket, m_trailingMode, m_trailingAtrPeriod, m_trailingAtrMultiplier, m_timeframe, m_trailingAtrHandle, m_trendFilterTimeframe);  // تریلینگ
-   }
-}
-
-// پاکسازی نرم: ریست متغیرها و حذف اشیاء بدون بستن معامله برای آماده‌سازی رنج بعدی
-// این تابع برای ریست روزانه بدون بستن معامله است
-void CRange::SoftCleanup()  // تابع پاکسازی نرم
-{
-   CLogger::Log("پاکسازی نرم رنج " + IntegerToString(m_rangeIndex) + "...", m_rangeIndex);  // چاپ دیباگ برای پاکسازی نرم
-
-   m_potentialBuyPrice = 0;  // ریست قیمت خرید
-   m_potentialSellPrice = 0;  // ریست قیمت فروش
-   m_breakerCandleLevel = 0;  // ریست سطح بریک
-   m_waitCounter = 0;  // ریست شمارنده تایم‌اوت
-   m_lastFilterBarTime = 0;  // ریست زمان فیلتر
-   // حذف اشیاء با ObjectDelete
-   ObjectDelete(0, m_buyLineName);  // حذف خط خرید
-   ObjectDelete(0, m_sellLineName);  // حذف خط فروش
-   ObjectDelete(0, m_rangeObjectName);  // حذف مستطیل رنج
-   // m_lastEndTime = 0; // حذف شده برای حفظ حافظه و جلوگیری از پردازش مجدد
-   m_lastInvalid = false;  // ریست فلگ نامعتبر
-
-   ResetCaches();  // ریست کش‌ها برای جلوگیری از استفاده از داده‌های کهنه
-
-   m_currentState = RANGE_WAITING;  // تنظیم حالت به انتظار
-   m_cleanupTime = 0;  // ریست زمان پاکسازی
-   CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + " برای روز بعد ریست شد (نرم).", m_rangeIndex);  // چاپ موفقیت
-}
-
-// (جدید) پاکسازی مسیرها و اشیاء گرافیکی بدون تغییر حالت اصلی (برای زمان پاکسازی با معامله باز)
-// این تابع فقط اشیاء را پاک می‌کند بدون ریست حالت
-void CRange::CleanupPaths()  // تابع پاکسازی مسیرها
-{
-   CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + ": پاکسازی اشیاء گرافیکی و مسیرهای ورود (معامله باز است).", m_rangeIndex);  // چاپ دیباگ
-
-   m_potentialBuyPrice = 0;  // غیرفعال کردن مسیر خرید
-   m_potentialSellPrice = 0;  // غیرفعال کردن مسیر فروش
-   ObjectDelete(0, m_buyLineName);  // حذف خط خرید
-   ObjectDelete(0, m_sellLineName);  // حذف خط فروش
-   ObjectDelete(0, m_rangeObjectName);  // حذف مستطیل رنج
-
-   m_cleanupTime = 0;  // زمان پاکسازی را صفر می‌کنیم تا این تابع دوباره اجرا نشود
-}
-
-// پاکسازی سخت: بستن معامله اگر باز باشد و سپس پاکسازی نرم (برای تعطیلات یا دفع)
-// تغییرات 2.00: ریست دستی فلگ‌ها قبل از SoftCleanup
-void CRange::HardCleanup()  // تابع پاکسازی سخت
-{
-   CLogger::Log("پاکسازی سخت رنج " + IntegerToString(m_rangeIndex) + "...", m_rangeIndex);  // چاپ دیباگ برای پاکسازی سخت
-
-   if(m_activeTicket != 0)  // چک معامله باز
-   {
-      if(CTradeManager::ClosePosition(m_activeTicket))  // بستن کامل معامله
+      // --- مرحله 3: فعال‌سازی تریلینگ استاپ ---
+      if(m_partialClosed && !m_slToBeMoved)  // چک پس از پله‌ای و BE
       {
-         CLogger::Log("معامله با تیکت " + (string)m_activeTicket + " بسته شد (سخت).", m_rangeIndex);  // چاپ دیباگ
+         // فراخوانی تریلینگ با تمام پارامترها
+         CTradeManager::TrailingStop(m_activeTicket, m_trailingMode, m_trailingAtrPeriod, m_trailingAtrMultiplier, m_timeframe, m_trailingAtrHandle, m_trendFilterTimeframe);  // تریلینگ
       }
-      // ریست کردن متغیرهای مربوط به معامله باز قبل از SoftCleanup
-      m_activeTicket = 0;  // ریست تیکت پس از بستن
-      m_partialClosed = false;  // ریست فلگ پله‌ای
-      m_slToBeMoved = false;  // ریست فلگ SL
    }
 
-   SoftCleanup();  // فراخوانی پاکسازی نرم پس از بستن و ریست متغیرها
-   CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + " پاکسازی سخت شد.", m_rangeIndex);  // چاپ موفقیت
-}
-
-// چک پاکسازی: چک زمان انقضا و فراخوانی پاکسازی مناسب بر اساس حالت (با معامله: فقط مسیرها، بدون: نرم)
-// این تابع در OnTimer و OnTick فراخوانی می‌شود
-void CRange::CheckCleanup()  // تابع چک پاکسازی
-{
-   if(m_cleanupTime == 0 || TimeCurrent() < m_cleanupTime) return;  // چک زمان انقضا نرسیده
-
-   if(m_currentState == MANAGING_TRADE)  // اگر معامله باز باشد
+   // پاکسازی نرم: ریست متغیرها و حذف اشیاء بدون بستن معامله برای آماده‌سازی رنج بعدی
+   // این تابع برای ریست روزانه بدون بستن معامله است
+   // تغییرات نسخه 2.1: ادغام منطق CleanupPaths، ریست m_lastEndTime برای حل قفل شدن، شرطی برای حفظ حالت MANAGING_TRADE
+   void SoftCleanup()  // تابع پاکسازی نرم
    {
-      CleanupPaths();  // فقط پاکسازی مسیرها بدون تغییر حالت
-   }
-   else  // بدون معامله
-   {
-      SoftCleanup();  // پاکسازی کامل نرم
-   }
-   CLogger::Log("چک پاکسازی برای رنج " + IntegerToString(m_rangeIndex) + " انجام شد.", m_rangeIndex);  // چاپ دیباگ
-}
+      CLogger::Log("پاکسازی نرم رنج " + IntegerToString(m_rangeIndex) + "...", m_rangeIndex);  // لاگ شروع
 
-// ریست کش‌ها: صفر کردن کش ATRها برای رنج جدید (برای جلوگیری از استفاده از داده‌های کهنه)
-// این تابع کش‌ها را صفر می‌کند
-void CRange::ResetCaches()  // تابع ریست کش
-{
-   m_cachedATR = 0;  // ریست کش ATR افست
-   m_cachedSlATR = 0;  // ریست کش ATR SL
-   m_cachedTrailingATR = 0;  // ریست کش ATR تریلینگ
-   CLogger::Log("کش‌های ATR برای رنج " + IntegerToString(m_rangeIndex) + " ریست شدند.", m_rangeIndex);  // چاپ دیباگ
-}
+      // ۱. پاکسازی متغیرهای مربوط به تلاش برای ورود
+      m_potentialBuyPrice = 0;
+      m_potentialSellPrice = 0;
+      m_breakerCandleLevel = 0;
+      m_waitCounter = 0;
 
-// گرفتن ATR کش‌شده اصلی: اگر کش خالی باشد، از هندل کپی می‌گیرد (فقط برای ورود استفاده شود)
-// CopyBuffer بافر را کپی می‌کند
-double CRange::GetCachedATR()  // تابع گرفتن ATR
-{
-   if(m_cachedATR <= 0)  // چک کش خالی
-   {
-      double atr[];  // آرایه ATR (دینامیک بدون اندازه ثابت)
-      ArraySetAsSeries(atr, true);  // تنظیم سری
-      if(CopyBuffer(m_atrHandle, 0, 1, 1, atr) <= 0)  // کپی بافر
+      // ۲. حذف تمام اشیاء گرافیکی مربوط به رنج
+      ObjectDelete(0, m_buyLineName);
+      ObjectDelete(0, m_sellLineName);
+      ObjectDelete(0, m_rangeObjectName);
+
+      // ۳. ریست کردن متغیرهای کنترلی برای شناسایی رنج بعدی
+      m_lastEndTime = 0; // << بسیار مهم: این خط باگ اصلی قفل شدن را حل می‌کند
+      m_lastInvalid = false;
+
+      // ۴. ریست کردن کش‌ها
+      ResetCaches();
+
+      // ۵. اگر معامله‌ای در حال مدیریت نیست، حالت را به انتظار برگردان
+      if(m_currentState != MANAGING_TRADE)
       {
-         CLogger::Log("خطا در گرفتن ATR برای رنج " + IntegerToString(m_rangeIndex) + ": " + IntegerToString(GetLastError()), m_rangeIndex);  // چاپ خطا
-         return 0;  // بازگشت صفر
+         m_currentState = RANGE_WAITING;
       }
-      m_cachedATR = atr[0];  // ذخیره در کش
-   }
-   return m_cachedATR;  // بازگشت کش
-}
 
-// گرفتن ATR کش‌شده برای SL: مشابه برای بهینه‌سازی محاسبات SL (فقط برای ورود استفاده شود)
-double CRange::GetSlATR()  // تابع گرفتن SL ATR
-{
-   if(m_cachedSlATR <= 0)  // چک کش خالی
-   {
-      double atr[];  // آرایه ATR (دینامیک بدون اندازه ثابت)
-      ArraySetAsSeries(atr, true);  // تنظیم سری
-      if(CopyBuffer(m_slAtrHandle, 0, 1, 1, atr) <= 0)  // کپی بافر
-      {
-         CLogger::Log("خطا در گرفتن ATR برای SL رنج " + IntegerToString(m_rangeIndex) + ": " + IntegerToString(GetLastError()), m_rangeIndex);  // چاپ خطا
-         return 0;  // بازگشت صفر
-      }
-      m_cachedSlATR = atr[0];  // ذخیره در کش
+      m_cleanupTime = 0; // ساعت پاکسازی را صفر کن تا این فرآیند تکرار نشود
+      CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + " پاکسازی نرم شد.", m_rangeIndex);  // لاگ موفقیت
    }
-   return m_cachedSlATR;  // بازگشت کش
-}
 
-// گرفتن ATR کش‌شده برای تریلینگ: مشابه برای بهینه‌سازی تریلینگ (فقط برای ورود استفاده شود، برای مدیریت پویا استفاده نشود)
-double CRange::GetTrailingATR()  // تابع گرفتن تریلینگ ATR
-{
-   if(m_cachedTrailingATR <= 0)  // چک کش خالی
+   // پاکسازی سخت: بستن معامله اگر باز باشد و سپس پاکسازی نرم (برای تعطیلات یا دفع)
+   // تغییرات 2.00: ریست دستی فلگ‌ها قبل از SoftCleanup
+   void HardCleanup()  // تابع پاکسازی سخت
    {
-      double atr[];  // آرایه ATR (دینامیک بدون اندازه ثابت)
-      ArraySetAsSeries(atr, true);  // تنظیم سری
-      if(CopyBuffer(m_trailingAtrHandle, 0, 1, 1, atr) <= 0)  // کپی بافر
+      CLogger::Log("پاکسازی سخت رنج " + IntegerToString(m_rangeIndex) + "...", m_rangeIndex);  // لاگ شروع
+
+      if(m_activeTicket != 0)  // چک معامله باز
       {
-         CLogger::Log("خطا در گرفتن ATR برای تریلینگ رنج " + IntegerToString(m_rangeIndex) + ": " + IntegerToString(GetLastError()), m_rangeIndex);  // چاپ خطا
-         return 0;  // بازگشت صفر
+         if(CTradeManager::ClosePosition(m_activeTicket))  // بستن کامل معامله
+         {
+            CLogger::Log("معامله با تیکت " + (string)m_activeTicket + " بسته شد (سخت).", m_rangeIndex);  // لاگ موفقیت
+         }
+         // ریست کردن متغیرهای مربوط به معامله باز قبل از SoftCleanup
+         m_activeTicket = 0;  // ریست تیکت پس از بستن
+         m_partialClosed = false;  // ریست فلگ پله‌ای
+         m_slToBeMoved = false;  // ریست فلگ SL
       }
-      m_cachedTrailingATR = atr[0];  // ذخیره در کش
+
+      SoftCleanup();  // فراخوانی پاکسازی نرم پس از بستن و ریست متغیرها
+      CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + " پاکسازی سخت شد.", m_rangeIndex);  // لاگ موفقیت
    }
-   return m_cachedTrailingATR;  // بازگشت کش
-}
+
+   // چک پاکسازی: چک زمان انقضا و فراخوانی پاکسازی مناسب بر اساس حالت (با معامله: فقط مسیرها، بدون: نرم)
+   // این تابع در OnTimer و OnTick فراخوانی می‌شود
+   // تغییرات نسخه 2.1: ساده‌سازی به فراخوانی SoftCleanup() (چون هوشمند شده)
+   void CheckCleanup()  // تابع چک پاکسازی
+   {
+      // اگر زمان پاکسازی نرسیده یا قبلاً انجام شده، خارج شو
+      if(m_cleanupTime == 0 || TimeCurrent() < m_cleanupTime) return;
+
+      CLogger::Log("زمان پاکسازی فرا رسید...", m_rangeIndex);  // لاگ رسیدن زمان
+      SoftCleanup(); // << فقط تابع هوشمند جدید را فراخوانی کن
+   }
+
+   // ریست کش‌ها: صفر کردن کش ATRها برای رنج جدید (برای جلوگیری از استفاده از داده‌های کهنه)
+   // این تابع کش‌ها را صفر می‌کند
+   void ResetCaches()  // تابع ریست کش
+   {
+      m_cachedATR = 0;  // ریست کش ATR افست
+      m_cachedSlATR = 0;  // ریست کش ATR SL
+      m_cachedTrailingATR = 0;  // ریست کش ATR تریلینگ
+      CLogger::Log("کش‌های ATR برای رنج " + IntegerToString(m_rangeIndex) + " ریست شدند.", m_rangeIndex);  // لاگ ریست
+   }
+
+   // گرفتن ATR کش‌شده اصلی: اگر کش خالی باشد، از هندل کپی می‌گیرد (فقط برای ورود استفاده شود)
+   // CopyBuffer بافر را کپی می‌کند
+   double GetCachedATR()  // تابع گرفتن ATR
+   {
+      if(m_cachedATR <= 0)  // چک کش خالی
+      {
+         double atr[];  // آرایه ATR (دینامیک بدون اندازه ثابت)
+         ArraySetAsSeries(atr, true);  // تنظیم سری
+         if(CopyBuffer(m_atrHandle, 0, 1, 1, atr) <= 0)  // کپی بافر
+         {
+            CLogger::Log("خطا در گرفتن ATR برای رنج " + IntegerToString(m_rangeIndex) + ": " + IntegerToString(GetLastError()), m_rangeIndex);  // لاگ خطا
+            return 0;  // بازگشت صفر
+         }
+         m_cachedATR = atr[0];  // ذخیره در کش
+      }
+      return m_cachedATR;  // بازگشت کش
+   }
+
+   // گرفتن ATR کش‌شده برای SL: مشابه برای بهینه‌سازی محاسبات SL (فقط برای ورود استفاده شود)
+   double GetSlATR()  // تابع گرفتن SL ATR
+   {
+      if(m_cachedSlATR <= 0)  // چک کش خالی
+      {
+         double atr[];  // آرایه ATR (دینامیک بدون اندازه ثابت)
+         ArraySetAsSeries(atr, true);  // تنظیم سری
+         if(CopyBuffer(m_slAtrHandle, 0, 1, 1, atr) <= 0)  // کپی بافر
+         {
+            CLogger::Log("خطا در گرفتن ATR برای SL رنج " + IntegerToString(m_rangeIndex) + ": " + IntegerToString(GetLastError()), m_rangeIndex);  // لاگ خطا
+            return 0;  // بازگشت صفر
+         }
+         m_cachedSlATR = atr[0];  // ذخیره در کش
+      }
+      return m_cachedSlATR;  // بازگشت کش
+   }
+
+   // گرفتن ATR کش‌شده برای تریلینگ: مشابه برای بهینه‌سازی تریلینگ (فقط برای ورود استفاده شود، برای مدیریت پویا استفاده نشود)
+   double GetTrailingATR()  // تابع گرفتن تریلینگ ATR
+   {
+      if(m_cachedTrailingATR <= 0)  // چک کش خالی
+      {
+         double atr[];  // آرایه ATR (دینامیک بدون اندازه ثابت)
+         ArraySetAsSeries(atr, true);  // تنظیم سری
+         if(CopyBuffer(m_trailingAtrHandle, 0, 1, 1, atr) <= 0)  // کپی بافر
+         {
+            CLogger::Log("خطا در گرفتن ATR برای تریلینگ رنج " + IntegerToString(m_rangeIndex) + ": " + IntegerToString(GetLastError()), m_rangeIndex);  // لاگ خطا
+            return 0;  // بازگشت صفر
+         }
+         m_cachedTrailingATR = atr[0];  // ذخیره در کش
+      }
+      return m_cachedTrailingATR;  // بازگشت کش
+   }
+};
 
 #endif  // پایان چک include
 ```
@@ -1746,6 +1476,7 @@ double CRange::GetTrailingATR()  // تابع گرفتن تریلینگ ATR
 // تغییرات جدید: اضافه منطق TRAILING_ICHIMOKU_B در TrailingStop با استفاده از GetSenkouSpanB و بافر ثابت (10 * _Point). 
 // همچنین تغییر PartialClose به روش بستن مخالف برای سازگاری با بروکرها.
 // تغییرات نسخه 2.00: جایگزینی Print با CLogger::Log، کامنت‌گذاری دقیق هر خط، بدون تغییر در منطق.
+// تغییرات نسخه 2.1: هیچ تغییری لازم نبود، اما کامنت‌ها برای سازگاری به‌روزرسانی شد.
 
 #ifndef TRADE_MANAGER_MQH  // چک وجود
 #define TRADE_MANAGER_MQH  // تعریف ماکرو
@@ -1763,7 +1494,7 @@ public:
    {
       if(!PositionSelectByTicket(ticket))  // چک انتخاب پوزیشن
       {
-         CLogger::Log("خطا: پوزیشن با تیکت " + (string)ticket + " برای بستن جزئی یافت نشد.");  // چاپ خطا
+         CLogger::Log("خطا: پوزیشن با تیکت " + (string)ticket + " برای بستن جزئی یافت نشد.");  // لاگ خطا
          return false;  // بازگشت شکست
       }
 
@@ -1804,12 +1535,12 @@ public:
       {
          if(result.retcode == TRADE_RETCODE_DONE || result.retcode == TRADE_RETCODE_PLACED)  // چک موفقیت
          {
-            if(InpDebugMode) CLogger::Log("بخشی از پوزیشن با تیکت " + (string)ticket + " (حجم " + DoubleToString(volume, 2) + ") با موفقیت بسته شد.");  // چاپ موفقیت
+            if(InpDebugMode) CLogger::Log("بخشی از پوزیشن با تیکت " + (string)ticket + " (حجم " + DoubleToString(volume, 2) + ") با موفقیت بسته شد.");  // لاگ موفقیت
             return true;  // بازگشت موفقیت
          }
       }
 
-      CLogger::Log("خطا در بستن بخشی از پوزیشن با تیکت " + (string)ticket + ": " + IntegerToString(result.retcode) + " - " + result.comment);  // چاپ خطا
+      CLogger::Log("خطا در بستن بخشی از پوزیشن با تیکت " + (string)ticket + ": " + IntegerToString(result.retcode) + " - " + result.comment);  // لاگ خطا
       return false;  // بازگشت شکست
    }
 
@@ -1819,7 +1550,7 @@ public:
    {
       if(!PositionSelectByTicket(ticket))  // چک انتخاب پوزیشن
       {
-         CLogger::Log("خطا: پوزیشن با تیکت " + (string)ticket + " یافت نشد.");  // چاپ خطا
+         CLogger::Log("خطا: پوزیشن با تیکت " + (string)ticket + " یافت نشد.");  // لاگ خطا
          return false;  // بازگشت شکست
       }
 
@@ -1827,12 +1558,12 @@ public:
       breakEvenPrice = NormalizeDouble(breakEvenPrice, _Digits);  // نرمالایز قیمت
       if(trade.PositionModify(ticket, breakEvenPrice, PositionGetDouble(POSITION_TP)))  // تغییر SL
       {
-         CLogger::Log("استاپ لاس پوزیشن " + (string)ticket + " به نقطه ورود منتقل شد.");  // چاپ موفقیت
+         CLogger::Log("استاپ لاس پوزیشن " + (string)ticket + " به نقطه ورود منتقل شد.");  // لاگ موفقیت
          return true;  // بازگشت موفقیت
       }
       else  // شرط شکست
       {
-         CLogger::Log("خطا در انتقال استاپ لاس پوزیشن " + (string)ticket + ": " + IntegerToString(trade.ResultRetcode()));  // چاپ خطا
+         CLogger::Log("خطا در انتقال استاپ لاس پوزیشن " + (string)ticket + ": " + IntegerToString(trade.ResultRetcode()));  // لاگ خطا
          return false;  // بازگشت شکست
       }
    }
@@ -1843,14 +1574,14 @@ public:
    {
       if(!PositionSelectByTicket(ticket))  // چک انتخاب پوزیشن
       {
-         CLogger::Log("خطا: پوزیشن با تیکت " + (string)ticket + " یافت نشد.");  // چاپ خطا
+         CLogger::Log("خطا: پوزیشن با تیکت " + (string)ticket + " یافت نشد.");  // لاگ خطا
          return false;  // بازگشت شکست
       }
 
       double sl = PositionGetDouble(POSITION_SL);  // SL فعلی
       if(sl == 0)  // چک SL صفر
       {
-         CLogger::Log("هشدار: SL اولیه صفر است برای پوزیشن " + (string)ticket + ". تریلینگ skip شد.");  // چاپ هشدار
+         CLogger::Log("هشدار: SL اولیه صفر است برای پوزیشن " + (string)ticket + ". تریلینگ skip شد.");  // لاگ هشدار
          return false;  // بازگشت شکست
       }
 
@@ -1864,7 +1595,7 @@ public:
          ArraySetAsSeries(atr, true);  // تنظیم سری
          if(CopyBuffer(atrHandle, 0, 1, 1, atr) <= 0)  // کپی بافر
          {
-            CLogger::Log("خطا در گرفتن ATR برای تریلینگ: " + IntegerToString(GetLastError()));  // چاپ خطا
+            CLogger::Log("خطا در گرفتن ATR برای تریلینگ: " + IntegerToString(GetLastError()));  // لاگ خطا
             return false;  // بازگشت شکست
          }
          trailingDistance = atr[0] * atrMultiplier;  // محاسبه پویا هر بار بدون کش
@@ -1874,7 +1605,7 @@ public:
          double senkouB = g_trendFilter.GetSenkouSpanB(trendTf);  // گرفتن Senkou Span B از فیلتر روند
          if(senkouB == 0)  // چک مقدار معتبر
          {
-            CLogger::Log("خطا در گرفتن Senkou Span B برای تریلینگ.");  // چاپ خطا
+            CLogger::Log("خطا در گرفتن Senkou Span B برای تریلینگ.");  // لاگ خطا
             return false;  // بازگشت شکست
          }
          double buffer = 10 * _Point;  // بافر ثابت (10 پوینت) برای فاصله از خط
@@ -1905,12 +1636,12 @@ public:
             CTrade trade;  // نمونه معامله
             if(trade.PositionModify(ticket, newSL, PositionGetDouble(POSITION_TP)))  // تغییر SL
             {
-               CLogger::Log("تریلینگ استاپ برای پوزیشن " + (string)ticket + " به‌روزرسانی شد. SL جدید=" + DoubleToString(newSL, _Digits));  // چاپ موفقیت
+               CLogger::Log("تریلینگ استاپ برای پوزیشن " + (string)ticket + " به‌روزرسانی شد. SL جدید=" + DoubleToString(newSL, _Digits));  // لاگ موفقیت
                return true;  // بازگشت موفقیت
             }
             else  // شرط شکست
             {
-               CLogger::Log("خطا در به‌روزرسانی تریلینگ استاپ: " + IntegerToString(trade.ResultRetcode()));  // چاپ خطا
+               CLogger::Log("خطا در به‌روزرسانی تریلینگ استاپ: " + IntegerToString(trade.ResultRetcode()));  // لاگ خطا
                return false;  // بازگشت شکست
             }
          }
@@ -1932,12 +1663,12 @@ public:
             CTrade trade;  // نمونه معامله
             if(trade.PositionModify(ticket, newSL, PositionGetDouble(POSITION_TP)))  // تغییر SL
             {
-               CLogger::Log("تریلینگ استاپ برای پوزیشن " + (string)ticket + " به‌روزرسانی شد. SL جدید=" + DoubleToString(newSL, _Digits));  // چاپ موفقیت
+               CLogger::Log("تریلینگ استاپ برای پوزیشن " + (string)ticket + " به‌روزرسانی شد. SL جدید=" + DoubleToString(newSL, _Digits));  // لاگ موفقیت
                return true;  // بازگشت موفقیت
             }
             else  // شرط شکست
             {
-               CLogger::Log("خطا در به‌روزرسانی تریلینگ استاپ: " + IntegerToString(trade.ResultRetcode()));  // چاپ خطا
+               CLogger::Log("خطا در به‌روزرسانی تریلینگ استاپ: " + IntegerToString(trade.ResultRetcode()));  // لاگ خطا
                return false;  // بازگشت شکست
             }
          }
@@ -1951,19 +1682,19 @@ public:
    {
       if(!PositionSelectByTicket(ticket))  // چک انتخاب پوزیشن
       {
-         CLogger::Log("خطا: پوزیشن با تیکت " + (string)ticket + " یافت نشد.");  // چاپ خطا
+         CLogger::Log("خطا: پوزیشن با تیکت " + (string)ticket + " یافت نشد.");  // لاگ خطا
          return false;  // بازگشت شکست
       }
 
       CTrade trade;  // نمونه معامله
       if(trade.PositionClose(ticket))  // بستن کامل
       {
-         CLogger::Log("پوزیشن با تیکت " + (string)ticket + " بسته شد.");  // چاپ موفقیت
+         CLogger::Log("پوزیشن با تیکت " + (string)ticket + " بسته شد.");  // لاگ موفقیت
          return true;  // بازگشت موفقیت
       }
       else  // شرط شکست
       {
-         CLogger::Log("خطا در بستن پوزیشن با تیکت " + (string)ticket + ": " + IntegerToString(trade.ResultRetcode()));  // چاپ خطا
+         CLogger::Log("خطا در بستن پوزیشن با تیکت " + (string)ticket + ": " + IntegerToString(trade.ResultRetcode()));  // لاگ خطا
          return false;  // بازگشت شکست
       }
    }
@@ -1988,6 +1719,7 @@ public:
 // این فایل توسط CRange برای محاسبه حجم در ExecuteTrade فراخوانی می‌شود. 
 // تغییرات: هیچ تغییری لازم نبود، اما کامنت‌ها به‌روزرسانی شد.
 // تغییرات نسخه 2.00: جایگزینی Print با CLogger::Log، کامنت‌گذاری دقیق.
+// تغییرات نسخه 2.1: هیچ تغییری لازم نبود.
 
 #ifndef RISK_MANAGER_MQH  // چک
 #define RISK_MANAGER_MQH  // تعریف
@@ -2008,7 +1740,7 @@ public:
    {
       if(g_tickValue == 0 || g_tickSize == 0)  // چک مقادیر کش معتبر
       {
-         CLogger::Log("خطا: tickValue یا tickSize صفر است. محاسبه حجم ممکن نیست.");  // چاپ خطا
+         CLogger::Log("خطا: tickValue یا tickSize صفر است. محاسبه حجم ممکن نیست.");  // لاگ خطا
          return 0;  // بازگشت صفر
       }
 
@@ -2020,7 +1752,7 @@ public:
 
       if (riskPerLot <= 0)  // چک ریسک معتبر
       {
-          CLogger::Log("خطا: ریسک به ازای هر لات نامعتبر است. slDistance=" + DoubleToString(slDistance, _Digits));  // چاپ خطا
+          CLogger::Log("خطا: ریسک به ازای هر لات نامعتبر است. slDistance=" + DoubleToString(slDistance, _Digits));  // لاگ خطا
           return 0;  // بازگشت صفر
       }
 
@@ -2032,11 +1764,11 @@ public:
 
       if(lotSize < g_volumeMin)  // چک کمتر از حداقل
       {
-         CLogger::Log("خطا: حجم محاسبه شده (" + DoubleToString(lotSize, 2) + ") کمتر از حداقل (" + DoubleToString(g_volumeMin, 2) + ") است.");  // چاپ خطا
+         CLogger::Log("خطا: حجم محاسبه شده (" + DoubleToString(lotSize, 2) + ") کمتر از حداقل (" + DoubleToString(g_volumeMin, 2) + ") است.");  // لاگ خطا
          return 0;  // بازگشت صفر
       }
 
-      if(InpDebugMode) CLogger::Log("حجم محاسبه شده: " + DoubleToString(lotSize, 2) + ", slDistance=" + DoubleToString(slDistance, _Digits) + ", riskPerLot=" + DoubleToString(riskPerLot, 2));  // چاپ دیباگ
+      if(InpDebugMode) CLogger::Log("حجم محاسبه شده: " + DoubleToString(lotSize, 2) + ", slDistance=" + DoubleToString(slDistance, _Digits) + ", riskPerLot=" + DoubleToString(riskPerLot, 2));  // لاگ دیباگ
       return lotSize;  // بازگشت حجم
    }
 };
@@ -2060,6 +1792,7 @@ public:
 // تغییرات جدید: اصلاح CalculateCleanupTime برای پذیرش datetime rangeEndTime و محاسبه ساده cleanupTime = rangeEndTime + cleanupHours * 3600 
 // برای جلوگیری از باگ محاسبه در رنج‌های شبانه.
 // تغییرات نسخه 2.00: کامنت‌گذاری دقیق، بدون Print (استاتیک).
+// تغییرات نسخه 2.1: اصلاح باگ DST با نسخه هوشمند و مقاوم، مدیریت GMT Offset و روزهای غیر معاملاتی.
 
 #ifndef TIME_HELPER_MQH  // چک
 #define TIME_HELPER_MQH  // تعریف
@@ -2071,30 +1804,48 @@ class CTimeHelper  // کلاس زمان
 public:
    // محاسبه زمان شروع و پایان رنج: تنظیم بر اساس روز فعلی و مدیریت رنج‌های عبور از نیمه‌شب
    // TimeToStruct زمان را به ساختار تبدیل می‌کند
-   static bool CalculateRangeTimes(int startHour, int startMinute, int endHour, int endMinute, datetime &startTime, datetime &endTime)  // محاسبه زمان رنج
+   // تغییرات نسخه 2.1: نسخه هوشمند با مدیریت GMT، DST و روزهای غیر معاملاتی
+   static bool CalculateRangeTimes(int startHour, int startMinute, int endHour, int endMinute, datetime &startTime, datetime &endTime)
    {
-      MqlDateTime dt;  // ساختار زمان
-      TimeToStruct(TimeCurrent(), dt);  // تبدیل زمان فعلی به ساختار
+      long server_gmt_offset = SymbolInfoInteger(_Symbol, SYMBOL_TIME_GMT_OFFSET);  // افست سرور با GMT
+      datetime gmt_now = TimeGMT();  // زمان GMT فعلی
+      MqlDateTime dt_gmt;  // ساختار GMT
+      TimeToStruct(gmt_now, dt_gmt);  // تبدیل
 
-      datetime today = TimeCurrent() - (dt.hour * 3600 + dt.min * 60 + dt.sec);  // روز فعلی بدون زمان
-      datetime start = today + startHour * 3600 + startMinute * 60;  // زمان شروع
-      datetime end = today + endHour * 3600 + endMinute * 60;  // زمان پایان
+      datetime gmt_today_start = gmt_now - (dt_gmt.hour * 3600 + dt_gmt.min * 60 + dt_gmt.sec);  // شروع روز GMT
 
-      if(endHour < startHour || (endHour == startHour && endMinute <= startMinute))  // چک رنج شبانه
+      datetime gmt_start_time = gmt_today_start + startHour * 3600 + startMinute * 60;  // زمان شروع GMT
+      datetime gmt_end_time = gmt_today_start + endHour * 3600 + endMinute * 60;  // زمان پایان GMT
+
+      if(gmt_end_time <= gmt_start_time)  // چک رنج شبانه
       {
-         end += 86400;  // اضافه روز برای عبور از نیمه‌شب
+         gmt_end_time += 86400;  // اضافه روز
       }
 
-      if(TimeCurrent() < start)  // چک زمان فعلی قبل از شروع
+      // حلقه هوشمند برای پیدا کردن آخرین روز معاملاتی (برای آخر هفته‌ها و کریپتو)
+      while(gmt_now < gmt_start_time)
       {
-         start -= 86400;  // تنظیم به روز قبل
-         end -= 86400;  // تنظیم به روز قبل
+         gmt_start_time -= 86400;  // عقب بردن
+         gmt_end_time -= 86400;
+
+         MqlDateTime check_day_dt;  // ساختار چک روز
+         TimeToStruct(gmt_start_time, check_day_dt);  // تبدیل
+         datetime session_from, session_to;  // جلسه معاملاتی
+
+         // اگر این روز جلسه معاملاتی ندارد (مثل شنبه برای فارکس)، یک روز دیگر عقب برو
+         if(!SymbolInfoSessionTrade(_Symbol, (ENUM_DAY_OF_WEEK)check_day_dt.day_of_week, 0, session_from, session_to))
+         {
+            CLogger::Log("روز غیر معاملاتی شناسایی شد: " + TimeToString(gmt_start_time, TIME_DATE) + ". بررسی روز قبل...", 0);  // لاگ روز غیر معاملاتی
+            continue;  // ادامه حلقه
+         }
+         break; // روز معاملاتی پیدا شد
       }
 
-      startTime = start;  // ذخیره شروع
-      endTime = end;  // ذخیره پایان
-      if(InpDebugMode) CLogger::Log("محاسبه زمان رنج: Start=" + TimeToString(startTime) + ", End=" + TimeToString(endTime));  // چاپ دیباگ
-      return true;  // بازگشت موفقیت
+      startTime = gmt_start_time + server_gmt_offset;  // تبدیل به زمان سرور
+      endTime = gmt_end_time + server_gmt_offset;  // تبدیل به زمان سرور
+
+      if(InpDebugMode) CLogger::Log("محاسبه زمان رنج (GMT Aware): Start=" + TimeToString(startTime) + ", End=" + TimeToString(endTime));  // لاگ دیباگ
+      return true;  // موفقیت
    }
 
    // محاسبه زمان پاکسازی: اضافه کردن ساعت‌های پاکسازی به زمان پایان برای انقضا (نسخه اصلاح شده)
@@ -2102,7 +1853,7 @@ public:
    static datetime CalculateCleanupTime(datetime rangeEndTime, int cleanupHours)  // محاسبه زمان پاکسازی
    {
       datetime cleanupTime = rangeEndTime + cleanupHours * 3600;  // به همین سادگی!
-      if(InpDebugMode) CLogger::Log("زمان پاکسازی محاسبه شد: " + TimeToString(cleanupTime));  // چاپ دیباگ
+      if(InpDebugMode) CLogger::Log("زمان پاکسازی محاسبه شد: " + TimeToString(cleanupTime));  // لاگ دیباگ
       return cleanupTime;  // بازگشت زمان
    }
 };
@@ -2129,6 +1880,7 @@ public:
 // این فایل توسط CRange برای تأیید فیلتر مستقل فراخوانی می‌شود. 
 // تغییرات جدید: اضافه تابع GetSenkouSpanB برای بازگشت مقدار Senkou Span B برای استفاده در تریلینگ.
 // تغییرات نسخه 2.00: جایگزینی Print با CLogger::Log، کامنت‌گذاری دقیق.
+// تغییرات نسخه 2.1: هیچ تغییری لازم نبود.
 
 #ifndef TREND_FILTER_MQH  // چک
 #define TREND_FILTER_MQH  // تعریف
@@ -2191,18 +1943,18 @@ public:
       double diff = MathAbs(senkouA - senkouB) / _Point;  // تفاوت به پوینت
       if(diff < Inp_Ichimoku_FlatThreshold_Points)  // چک فلت بودن
       {
-         if(InpDebugMode) CLogger::Log("ابر ایچیموکو فلت است. جهت: NEUTRAL");  // چاپ دیباگ
+         if(InpDebugMode) CLogger::Log("ابر ایچیموکو فلت است. جهت: NEUTRAL");  // لاگ دیباگ
          return TREND_NEUTRAL;  // بازگشت خنثی
       }
 
       if(senkouA > senkouB)  // چک صعودی
       {
-         if(InpDebugMode) CLogger::Log("جهت روند: BUY");  // چاپ دیباگ
+         if(InpDebugMode) CLogger::Log("جهت روند: BUY");  // لاگ دیباگ
          return TREND_BUY;  // بازگشت خرید
       }
       else  // چک نزولی
       {
-         if(InpDebugMode) CLogger::Log("جهت روند: SELL");  // چاپ دیباگ
+         if(InpDebugMode) CLogger::Log("جهت روند: SELL");  // لاگ دیباگ
          return TREND_SELL;  // بازگشت فروش
       }
    }
@@ -2220,7 +1972,7 @@ public:
 
       if(senkouB == 0)  // چک مقدار معتبر (برای ایمنی)
       {
-         if(InpDebugMode) CLogger::Log("خطا در محاسبه Senkou Span B.");  // چاپ خطا
+         if(InpDebugMode) CLogger::Log("خطا در محاسبه Senkou Span B.");  // لاگ خطا
       }
       return senkouB;  // بازگشت مقدار
    }
@@ -2246,6 +1998,7 @@ public:
 // (اگر Inp_Visual_ShowTrendStatus خاموش باشد، نادیده گرفته می‌شود). 
 // تغییرات جدید: پشتیبانی از متن چندخطی برای نمایش هر رنج جداگانه.
 // تغییرات نسخه 2.00: جایگزینی Print با CLogger::Log، کامنت‌گذاری دقیق.
+// تغییرات نسخه 2.1: هیچ تغییری لازم نبود.
 
 #ifndef VISUAL_MANAGER_MQH  // چک
 #define VISUAL_MANAGER_MQH  // تعریف
@@ -2264,25 +2017,25 @@ public:
    // ObjectCreate شیء را می‌سازد
    bool Init()  // مقداردهی مدیر نمایش
    {
-      if(InpDebugMode) CLogger::Log("مقداردهی مدیر نمایش...");  // چاپ دیباگ برای شروع
+      if(InpDebugMode) CLogger::Log("مقداردهی مدیر نمایش...");  // لاگ شروع
       if(Inp_Visual_ShowTrendStatus)  // چک فعال بودن نمایش
       {
          if(!ObjectCreate(0, m_trendStatusObjectName, OBJ_LABEL, 0, 0, 0))  // ایجاد LABEL
          {
-            CLogger::Log("خطا در ایجاد شیء نمایش روند: " + IntegerToString(GetLastError()));  // چاپ خطا
-            return false;  // بازگشت شکست
+            CLogger::Log("خطا در ایجاد شیء نمایش روند: " + IntegerToString(GetLastError()));  // لاگ خطا
+            return false;  // شکست
          }
 
-         ObjectSetInteger(0, m_trendStatusObjectName, OBJPROP_XDISTANCE, Inp_Visual_X_Offset);  // تنظیم فاصله افقی
-         ObjectSetInteger(0, m_trendStatusObjectName, OBJPROP_YDISTANCE, Inp_Visual_Y_Offset);  // تنظیم فاصله عمودی
-         ObjectSetInteger(0, m_trendStatusObjectName, OBJPROP_CORNER, CORNER_LEFT_UPPER);  // تنظیم گوشه چپ بالا
-         ObjectSetInteger(0, m_trendStatusObjectName, OBJPROP_FONTSIZE, Inp_Visual_FontSize);  // تنظیم اندازه فونت
-         ObjectSetString(0, m_trendStatusObjectName, OBJPROP_FONT, "Arial");  // تنظیم فونت
+         ObjectSetInteger(0, m_trendStatusObjectName, OBJPROP_XDISTANCE, Inp_Visual_X_Offset);  // فاصله افقی
+         ObjectSetInteger(0, m_trendStatusObjectName, OBJPROP_YDISTANCE, Inp_Visual_Y_Offset);  // فاصله عمودی
+         ObjectSetInteger(0, m_trendStatusObjectName, OBJPROP_CORNER, CORNER_LEFT_UPPER);  // گوشه چپ بالا
+         ObjectSetInteger(0, m_trendStatusObjectName, OBJPROP_FONTSIZE, Inp_Visual_FontSize);  // اندازه فونت
+         ObjectSetString(0, m_trendStatusObjectName, OBJPROP_FONT, "Arial");  // فونت
          ObjectSetString(0, m_trendStatusObjectName, OBJPROP_TEXT, "Initializing...");  // متن اولیه
          ObjectSetInteger(0, m_trendStatusObjectName, OBJPROP_COLOR, Inp_Visual_FontColor_Neutral);  // رنگ خنثی
       }
-      if(InpDebugMode) CLogger::Log("مدیر نمایش با موفقیت مقداردهی شد.");  // چاپ موفقیت
-      return true;  // بازگشت موفقیت
+      if(InpDebugMode) CLogger::Log("مدیر نمایش با موفقیت مقداردهی شد.");  // لاگ موفقیت
+      return true;  // موفقیت
    }
 
    // دفع: حذف شیء LABEL برای پاکسازی چارت
@@ -2290,7 +2043,7 @@ public:
    void Deinit()  // دفع مدیر نمایش
    {
       ObjectDelete(0, m_trendStatusObjectName);  // حذف شیء
-      if(InpDebugMode) CLogger::Log("شیء نمایش روند حذف شد.");  // چاپ دیباگ
+      if(InpDebugMode) CLogger::Log("شیء نمایش روند حذف شد.");  // لاگ دیباگ
    }
 
    // به‌روزرسانی نمایش: تغییر متن کامل وضعیت روند هر رنج و redraw چارت
@@ -2307,56 +2060,3 @@ public:
 
 #endif  // پایان
 ```
-
-```mql5
-//+------------------------------------------------------------------+
-//|                                                        Logger.mqh |
-//|                       Copyright 2025, Hipoalgorithm Team         |
-//|                       https://hipoalgorithm.com                  |
-//+------------------------------------------------------------------+
-// یک کتابخانه ساده و استاتیک برای مدیریت لاگ‌نویسی هوشمند
-// این فایل برای جلوگیری از لاگ تکراری و نویز طراحی شده است.
-// تغییرات نسخه 2.00: فایل جدید با CLogger استاتیک، m_lastMessage برای جلوگیری از تکرار، 
-// فرمت استاندارد با پیشوند [Elemento] [Range X] >> پیام.
-
-#ifndef LOGGER_MQH  // چک وجود
-#define LOGGER_MQH  // تعریف ماکرو
-
-// کلاس CLogger استاتیک برای لاگ بدون نمونه‌سازی
-class CLogger  // کلاس لاگ
-{
-private:
-   static string m_lastMessage;  // برای ذخیره آخرین پیام و جلوگیری از تکرار (استاتیک برای اشتراک)
-
-public:
-   // تابع اصلی لاگ‌نویسی
-   // این تابع پیام را با چک تکرار چاپ می‌کند
-   static void Log(string message, int rangeIndex = 0)  // تابع لاگ با پیام و ایندکس اختیاری
-   {
-      // فقط اگر حالت دیباگ فعال باشد لاگ می‌نویسد
-      if(!InpDebugMode)  // شرط دیباگ
-         return;  // خروج بدون چاپ
-         
-      // اگر پیام جدید با پیام قبلی یکی باشد، آن را نادیده می‌گیرد
-      if(message == m_lastMessage)  // چک تکرار
-         return;  // خروج
-
-      string prefix = "[Elemento]";  // پیشوند کلی
-      
-      if(rangeIndex > 0)  // اگر مربوط به یک رنج خاص باشد
-      {
-         prefix += " [Range " + IntegerToString(rangeIndex) + "]";  // اضافه ایندکس
-      }
-      
-      Print(prefix + " >> " + message);  // چاپ پیام نهایی با Print (MT5 استاندارد)
-      
-      m_lastMessage = message;  // ذخیره پیام فعلی برای مقایسه بعدی
-   }
-};
-
-// مقداردهی اولیه متغیر استاتیک (خارج از کلاس)
-string CLogger::m_lastMessage = "";  // مقداردهی اولیه متغیر استاتیک
-
-#endif  // پایان
-```
-
