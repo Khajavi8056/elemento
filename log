@@ -1,63 +1,57 @@
-آره حله داداش! کارت رو راه میندازم. یه تیکه کد کوچیک بهت میدم که موقتی بندازی تو اکسپرتت تا ایچیموکو رو قشنگ روی چارت ویژوال ببینی و مطمئن بشی همه چی درسته.
-این کار خیلی ساده‌ست. فقط کافیه به اکسپرت بگیم یه "هندل" از اندیکاتور ایچیموکو بسازه. همین که هندل ساخته بشه، متاتریدر خودش توی تستر ویژوال اون رو نمایش میده.
-این سه تا قدم رو به ترتیب انجام بده:
-قدم اول: تعریف یک متغیر برای هندل اندیکاتور
-توی فایل اصلی اکسپرت (Elemento.mq5)، برو بالای بالا، همون‌جایی که بقیه متغیرهای جهانی (global) مثل g_ranges و g_trendFilter رو تعریف کردی. این یک خط کد رو اونجا اضافه کن:
-// ... بقیه متغیرهای جهانی
-CActiveTradeManager g_tradeManager; // مدیر معاملات
-
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//++++ کد موقت برای نمایش ایچیموکو روی چارت تستر (قدم ۱) ++++
-int g_visual_ichimoku_handle = INVALID_HANDLE;
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-// تابع شروع اکسپرت (OnInit): مقداردهی اولیه...
-int OnInit()
-// ...
-
-قدم دوم: ساختن اندیکاتور در تابع OnInit
-حالا برو توی تابع OnInit، یه جای خوب، مثلاً آخرای تابع، درست قبل از خط return(INIT_SUCCEEDED);. این چند خط کد رو اونجا کپی کن. این کد از تنظیمات ایچیموکو که در inputها دادی استفاده می‌کنه.
-نکته: این کد از تایم‌فریم فیلتر رنج ۱ (InpRange1_TrendFilter_Timeframe) استفاده می‌کنه. می‌تونی به دلخواه خودت تغییرش بدی.
-// ... بقیه کدهای داخل OnInit
-   EventSetTimer(60); // تنظیم تایمر ۶۰ ثانیه
-
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//++++ کد موقت برای نمایش ایچیموکو (قدم ۲) ++++
-   if(g_isTester) // فقط در حالت تستر این کار رو انجام بده
+// به‌روزرسانی در کندل جدید: اجرای ماشین حالت (نسخه اصلاح شده با اولویت پاکسازی)
+void CRange::UpdateOnNewBar()
+{
+   // ==================== شروع اصلاحیه ====================
+   // قدم اول: قبل از هر کاری، زمان پاکسازی رو چک کن
+   if (m_cleanupTime != 0 && TimeCurrent() >= m_cleanupTime && !m_isCleanedForThisCycle)
    {
-      g_visual_ichimoku_handle = iIchimoku(_Symbol, InpRange1_TrendFilter_Timeframe, Inp_Ichimoku_Tenkan, Inp_Ichimoku_Kijun, Inp_Ichimoku_SenkouB);
-      if(g_visual_ichimoku_handle == INVALID_HANDLE)
+       CLogger::Log("زمان پاکسازی فرا رسید (" + TimeToString(m_cleanupTime) + "). اجرای پاکسازی نرم.", m_rangeIndex);
+       // مستقیماً SoftCleanup رو اجرا میکنیم و حالت رو به IDLE تغییر میدیم
+       SoftCleanup();
+       m_currentState = RANGE_IDLE;
+       // با return از تابع خارج میشیم تا هیچ منطق معاملاتی دیگه‌ای در این کندل اجرا نشه
+       return;
+   }
+   // ==================== پایان اصلاحیه =====================
+
+   // لاگ ورود به تابع برای ردیابی
+   CLogger::Log("------ در حالت " + EnumToString(m_currentState) + " ------", m_rangeIndex);
+
+   // سوئیچ بر اساس حالت فعلی برای اجرای تابع مربوطه
+   switch(m_currentState)
+   {
+      case RANGE_IDLE:
       {
-         Print("خطا در ساخت هندل ایچیموکو برای نمایش ویژوال!");
+         // ... (بقیه کد بدون تغییر باقی می‌مونه)
+         datetime currentTime = TimeCurrent();
+         datetime startTime, endTime;
+         if(CTimeHelper::CalculateRangeTimes(m_startHour, m_startMinute, m_endHour, m_endMinute, startTime, endTime))
+         {
+            if(currentTime >= startTime && currentTime < endTime)
+            {
+               CLogger::Log("زمان رنج فرا رسید. انتقال به RANGE_IDENTIFYING.", m_rangeIndex);
+               m_currentState = RANGE_IDENTIFYING;
+            }
+         }
+         break;
       }
+      case RANGE_IDENTIFYING:
+         IdentifyAndValidateRange();
+         break;
+      case RANGE_ARMED:
+         WaitForBreakerCandle();
+         break;
+      case AWAITING_CONFIRMATION:
+         ProcessEntryAttempt();
+         break;
+      case RANGE_TRADE_ACTIVE:
+         CLogger::Log("معامله فعال است. منتظر پاکسازی.", m_rangeIndex);
+         break;
+      case RANGE_EXPIRED:
+         SoftCleanup();
+         m_currentState = RANGE_IDLE;
+         break;
    }
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-   // چاپ موفقیت مقداردهی با Print (چون نهایی است)
-   Print("مقداردهی اکسپرت Elemento نسخه 2.10 با موفقیت انجام شد.");
-   return(INIT_SUCCEEDED); // بازگشت موفقیت
+   // تابع CheckCleanup() از انتهای تابع حذف میشه چون منطقش به بالای تابع منتقل شد.
 }
-
-قدم سوم: پاک کردن اندیکاتور در تابع OnDeinit
-آخرین کار اینه که توی تابع OnDeinit به اکسپرت بگی وقتی کارش تموم شد، این اندیکاتور رو از حافظه پاک کنه تا همه چی تمیز باقی بمونه. این کد رو یه جایی داخل OnDeinit اضافه کن:
-// ... بقیه کدهای داخل OnDeinit
-   // حذف تمام اشیاء گرافیکی با پیشوند Range_ برای پاکسازی چارت
-   ObjectsDeleteAll(0, "Range_"); //
-   Print("تمامی اشیاء گرافیکی پاکسازی شدند."); //
-
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//++++ کد موقت برای پاکسازی هندل ایچیموکو (قدم ۳) ++++
-   if(g_visual_ichimoku_handle != INVALID_HANDLE)
-   {
-      IndicatorRelease(g_visual_ichimoku_handle);
-   }
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-   // خاموش کردن تایمر
-   EventKillTimer(); //
-}
-
-چطور استفاده کنی و بعداً حذفش کنی؟
-همین! حالا کد رو کامپایل کن و تستر رو در حالت ویژوال اجرا کن. می‌بینی که اندیکاتور ایچیموکو با تنظیماتی که بهش دادی روی چارت نمایش داده میشه و میتونی رفتار اکسپرت رو باهاش مقایسه کنی.
-برای حذف کردنش هم: هر وقت تستت تموم شد و خواستی کد رو به حالت اصلی برگردونی، فقط کافیه همین سه تیکه کدی که بین علامت‌های ++++ گذاشتم رو پاک کنی یا اول و آخرشون /* و */ بذاری تا کامنت بشن.
-این یه روش سریع و ساده برای دیباگ کردنه. بزن بریم!
