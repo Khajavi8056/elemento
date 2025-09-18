@@ -1,34 +1,84 @@
-// به‌روزرسانی در کندل جدید: اجرای ماشین حالت (نسخه نهایی و اصلاح شده)
-void CRange::UpdateOnNewBar()
+// فرآیند تلاش ورود: چک ابطال، تایید قیمت و فیلتر روند، اجرای معامله اگر تایید شد (نسخه کاملاً صحیح)
+void CRange::ProcessEntryAttempt()
 {
-   // ==================== راه حل قطعی اینجا قرار دارد ====================
-   // قدم اول: قبل از هر کاری و فارغ از هر حالتی، زمان پاکسازی رو چک کن
-   if (m_cleanupTime != 0 && TimeCurrent() >= m_cleanupTime && !m_isCleanedForThisCycle)
-   {
-       CLogger::Log("زمان پاکسازی فرا رسید (حالت فعلی: " + EnumToString(m_currentState) + "). اجرای پاکسازی نرم.", m_rangeIndex);
-       
-       // مستقیماً SoftCleanup رو اجرا میکنیم
-       SoftCleanup();
-       
-       // حالت رو به IDLE تغییر میدیم تا برای روز بعد آماده بشه
-       m_currentState = RANGE_IDLE;
-       
-       // با return از تابع خارج میشیم تا هیچ منطق دیگه‌ای در این کندل اجرا نشه
-       return;
-   }
-   // =================================================================
+   // قدم اول: تشخیص جهت معتبر از متغیر ذخیره‌شده
+   bool isBuyAttempt = m_isBuyAttempt;
+   double close1 = iClose(_Symbol, m_timeframe, 1);
 
-   // لاگ ورود به تابع برای ردیابی
-   CLogger::Log("------ در حالت " + EnumToString(m_currentState) + " ------", m_rangeIndex);
-
-   // حالا بقیه منطق ماشین حالت اجرا میشه
-   switch(m_currentState)
+   // قدم دوم: اجرای استراتژی تایید/ابطال با switch
+   switch(Inp_Confirmation_Strategy)
    {
-      // ... (تمام case های دیگر بدون تغییر)
-      case RANGE_TRADE_ACTIVE:
-         // این بخش دیگه فقط برای لاگ زدنه، چون پاکسازی در بالای تابع انجام میشه
-         CLogger::Log("معامله فعال است. منتظر پاکسازی.", m_rangeIndex);
+      case CONFIRMATION_TIMEOUT:
+         m_waitCounter++;
+         if(m_waitCounter > Inp_Confirmation_Timeout)
+         {
+            if(isBuyAttempt) m_buyAttemptDisabled = true;
+            else m_sellAttemptDisabled = true;
+            CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + ": مهلت تایید تمام شد. ابطال دائمی جهت " + (isBuyAttempt ? "خرید" : "فروش") + ".", m_rangeIndex);
+            ResetToArmedState();
+            return;
+         }
          break;
-      // ...
+
+      // ================== شروع اصلاحیه آکولاد ==================
+      case CONFIRMATION_PRICE_INVALIDATION:
+      { // آکولاد باز برای شروع محدوده case
+         bool isInvalid = false;
+         if(Inp_Invalidation_Mode == INVALIDATION_RANGE_REENTRY)
+         {
+            if(isBuyAttempt && close1 < m_rangeHigh) isInvalid = true;
+            if(!isBuyAttempt && close1 > m_rangeLow) isInvalid = true;
+         }
+         else
+         {
+            if(isBuyAttempt && close1 < m_potentialBuyPrice) isInvalid = true;
+            if(!isBuyAttempt && close1 > m_potentialSellPrice) isInvalid = true;
+         }
+
+         if(isInvalid)
+         {
+            CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + ": شرط ابطال قیمتی رخ داد. ریست موقت.", m_rangeIndex);
+            ResetToArmedState();
+            return;
+         }
+         break;
+      } // آکولاد بسته برای پایان محدوده case
+      // ================== پایان اصلاحیه آکولاد ===================
+   }
+
+   // قدم سوم: تایید قیمت اختیاری (این بخش باید خارج از switch باشه)
+   if(Inp_PriceConfirmation_Enabled)
+   {
+      bool priceConfirmed = (isBuyAttempt ? (close1 > m_breakerCandleLevel) : (close1 < m_breakerCandleLevel));
+      if(!priceConfirmed)
+      {
+         CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + ": تایید قیمت برقرار نیست. صبر برای کندل بعدی.", m_rangeIndex);
+         return;
+      }
+   }
+
+   // قدم چهارم: اجرای فیلتر روند (این بخش هم باید خارج از switch باشه)
+   ENUM_TREND_DIRECTION currentTrend = g_trendFilter.GetTrendDirection(m_trendFilterTimeframe);
+   bool filterConfirmed = false;
+   if(!Inp_IchimokuFilter_Enabled)
+   {
+      filterConfirmed = true;
+   }
+   else
+   {
+      if(isBuyAttempt && currentTrend == TREND_BUY) filterConfirmed = true;
+      else if(!isBuyAttempt && currentTrend == TREND_SELL) filterConfirmed = true;
+      else if(currentTrend == TREND_NEUTRAL)
+      {
+         CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + ": روند خنثی. صبر برای جهت مشخص.", m_rangeIndex);
+         return;
+      }
+   }
+
+   // اجرای معامله اگر فیلتر تایید شد
+   if(filterConfirmed)
+   {
+      CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + ": تمام تاییدها برقرار. اجرای معامله.", m_rangeIndex);
+      ExecuteTrade(isBuyAttempt);
    }
 }
