@@ -95,7 +95,7 @@ input bool Inp_IchimokuFilter_Enabled = true; // فعال کردن فیلتر ر
 input int Inp_Ichimoku_Tenkan = 9; // دوره تنکان-سن (خط سریع ایچیموکو برای تشخیص روند کوتاه‌مدت، پیش‌فرض استاندارد)
 input int Inp_Ichimoku_Kijun = 26; // دوره کیجون-سن (خط کند ایچیموکو برای تشخیص روند میان‌مدت، پیش‌فرض استاندارد)
 input int Inp_Ichimoku_SenkouB = 52; // دوره سنکو اسپن B (ابر ایچیموکو برای تشخیص حمایت/مقاومت آینده، پیش‌فرض استاندارد)
-input int Inp_Ichimoku_FlatThreshold_Points = 90; // آستانه تشخیص ابر فلت به پوینت (برای تعیین روند خنثی اگر تفاوت سنکو A و B کمتر باشد، بر اساس نماد تنظیم شود)
+input double Inp_Ichimoku_FlatThreshold_Points = 0.0; // آستانه تشخیص ابر فلت به پوینت (برای تعیین روند خنثی اگر تفاوت سنکو A و B کمتر باشد، بر اساس نماد تنظیم شود)
 
 // گروه ورودی برای تنظیمات نمایشگر چارت (برای نمایش بصری وضعیت روند هر رنج به طور جداگانه روی چارت به کاربر)
 // این گروه برای نظارت بصری کاربر است و عملکرد را تحت تأثیر قرار نمی‌دهد
@@ -113,7 +113,7 @@ input int Inp_Visual_Y_Offset = 10; // فاصله عمودی از لبه چار�
 input group "تنظیمات رنج 1"  // عنوان گروه
 input bool InpRange1_Enabled = true; // فعال کردن رنج 1 (اگر خاموش باشد، این رنج نادیده گرفته می‌شود و منابع صرفه‌جویی می‌شود)
 input ENUM_TIMEFRAMES InpRange1_Execution_Timeframe = PERIOD_M5; // تایم‌فریم اجرا رنج 1 (برای اجرای منطق رنج و محاسبات، M1-M30 توصیه‌شده)
-input ENUM_TIMEFRAMES InpRange1_TrendFilter_Timeframe = PERIOD_H1; // تایم‌فریم فیلتر روند رنج 1 (برای فیلتر ایچیموکو، می‌تواند متفاوت باشد، H1-H4 مناسب)
+input ENUM_TIMEFRAMES InpRange1_TrendFilter_Timeframe = PERIOD_M15; // تایم‌فریم فیلتر روند رنج 1 (برای فیلتر ایچیموکو، می‌تواند متفاوت باشد، H1-H4 مناسب)
 input int InpRange1_Start_Hour = 22; // ساعت شروع رنج 1 (0-23 برای تعریف بازه زمانی، بر اساس GMT سرور)
 input int InpRange1_Start_Minute = 0; // دقیقه شروع رنج 1 (0-59 برای دقت زمانی، 0 برای شروع ساعتی)
 input int InpRange1_End_Hour = 9; // ساعت پایان رنج 1 (0-23، اگر کمتر از شروع باشد، رنج شبانه فرض می‌شود)
@@ -138,7 +138,7 @@ input color InpRange1_Color = clrBlue; // رنگ مستطیل رنج 1 (برای
 // گروه ورودی برای تنظیمات رنج 2 (دومین رنج، معمولاً برای سشن اروپا)
 // مشابه رنج 1، اما با پارامترهای بهینه‌شده برای سشن اروپا
 input group "تنظیمات رنج 2"  // عنوان گروه
-input bool InpRange2_Enabled = true; // فعال کردن رنج 2 (خاموش برای غیرفعال کردن)
+input bool InpRange2_Enabled = false; // فعال کردن رنج 2 (خاموش برای غیرفعال کردن)
 input ENUM_TIMEFRAMES InpRange2_Execution_Timeframe = PERIOD_M15; // تایم‌فریم اجرا رنج 2 (M5-M30)
 input ENUM_TIMEFRAMES InpRange2_TrendFilter_Timeframe = PERIOD_M15; // تایم‌فریم فیلتر روند رنج 2 (M15-H1)
 input int InpRange2_Start_Hour = 5; // ساعت شروع رنج 2 (0-23)
@@ -321,17 +321,17 @@ int OnInit()  // تابع مقداردهی اولیه
 
    // ولیدیشن ورودی‌های عمومی (اطمینان از محدوده مجاز برای جلوگیری از خطاهای منطقی)
    // این چک‌ها از اجرای نادرست جلوگیری می‌کنند
-   if(InpRiskPercent <= 0 || InpRiskPercent > 5.0)  // چک محدوده ریسک
+   if(InpRiskPercent <= 0 || InpRiskPercent > 10.0)  // چک محدوده ریسک
    {
-      Print("خطا: RiskPercent باید بین 0.1 تا 5.0 باشد.");  // چاپ خطا برای ریسک نامعتبر
+      Print("خطا: RiskPercent باید بین 0.1 تا 10.0 باشد.");  // چاپ خطا برای ریسک نامعتبر
       return(INIT_PARAMETERS_INCORRECT);  // بازگشت شکست پارامترها
    }
 
    // ولیدیشن Inp_Confirmation_Timeout اگر حالت قدیمی انتخاب شده باشد
    // این چک فقط در حالت تایمر اعمال می‌شود
-   if(Inp_Confirmation_Strategy == CONFIRMATION_TIMEOUT && (Inp_Confirmation_Timeout < 1 || Inp_Confirmation_Timeout > 10))  // چک محدوده تایم‌اوت
+   if(Inp_Confirmation_Strategy == CONFIRMATION_TIMEOUT && (Inp_Confirmation_Timeout < 1 || Inp_Confirmation_Timeout > 50))  // چک محدوده تایم‌اوت
    {
-      Print("خطا: Confirmation_Timeout باید بین 1 تا 10 باشد (برای حالت تایمر).");  // چاپ خطا برای تایم‌اوت نامعتبر
+      Print("خطا: Confirmation_Timeout باید بین 1 تا 50 باشد (برای حالت تایمر).");  // چاپ خطا برای تایم‌اوت نامعتبر
       return(INIT_PARAMETERS_INCORRECT);  // بازگشت شکست پارامترها
    }
 
@@ -1104,6 +1104,25 @@ void CRange::Deinit()  // تابع دفع
 // سوئیچ بر اساس حالت فعلی برای کنترل جریان
 void CRange::UpdateOnNewBar()  // تابع به‌روزرسانی
 {
+
+     // ==================== شروع اصلاحیه اصلی ====================
+   // قدم اول: قبل از هر کاری و فارغ از هر حالتی، زمان پاکسازی رو چک کن
+   // این بلوک تضمین می‌کنه که پاکسازی همیشه در اولویت قرار داره.
+   if (m_cleanupTime != 0 && TimeCurrent() >= m_cleanupTime && !m_isCleanedForThisCycle)
+   {
+       CLogger::Log("زمان پاکسازی فرا رسید (حالت فعلی: " + EnumToString(m_currentState) + "). اجرای پاکسازی نرم.", m_rangeIndex);
+       
+       // مستقیماً SoftCleanup رو اجرا میکنیم
+       SoftCleanup();
+       
+       // حالت رو به IDLE تغییر میدیم تا برای روز بعد آماده بشه
+       m_currentState = RANGE_IDLE;
+       
+       // با return از تابع خارج میشیم تا هیچ منطق معاملاتی دیگه‌ای در این کندل اجرا نشه
+       return;
+   }
+   // ==================== پایان اصلاحیه اصلی =====================
+
    // لاگ ورود به تابع برای ردیابی
    CLogger::Log("------ در حالت " + EnumToString(m_currentState) + " ------", m_rangeIndex);  // عنوان حالت
 
@@ -1143,8 +1162,6 @@ void CRange::UpdateOnNewBar()  // تابع به‌روزرسانی
          m_currentState = RANGE_IDLE;  // بازگشت به بیکار
          break;  // خروج
    }
-
-   CheckCleanup();  // چک پاکسازی در هر کندل جدید
 }
 
 // شناسایی و ولید رنج: محاسبه سقف/کف، چک ارتفاع، محاسبه ثابت افست و رسم مستطیل اگر معتبر باشد
@@ -1277,7 +1294,8 @@ void CRange::IdentifyAndValidateRange()  // تابع شناسایی
       ObjectSetInteger(0, m_sellLineName, OBJPROP_COLOR, clrRed);
       ObjectSetInteger(0, m_sellLineName, OBJPROP_STYLE, STYLE_DASH);
    }
-
+   //ریست پرچم پکسازی  برای رنج جدید 
+   m_isCleanedForThisCycle =  false;
    // محاسبه زمان پاکسازی
    m_cleanupTime = CTimeHelper::CalculateCleanupTime(m_rangeEndTime, m_cleanupHours);
    CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + " مسلح شد. Potential Buy: " + DoubleToString(m_potentialBuyPrice, _Digits) + ", Sell: " + DoubleToString(m_potentialSellPrice, _Digits), m_rangeIndex);
@@ -1324,88 +1342,91 @@ void CRange::WaitForBreakerCandle()  // تابع انتظار بریک (اصلا
    // اگر هیچ شکستی نبود، منتظر بمان (حالت ARMED حفظ می‌شود)
 }
 
-// فرآیند تلاش ورود: چک ابطال، تایید قیمت و فیلتر روند، اجرای معامله اگر تایید شد (بازنویسی کامل برای منطق جدید)
-// این تابع بر اساس قدم‌های مشخص شده عمل می‌کند: تشخیص جهت، استراتژی تایید/ابطال، تایید قیمت، فیلتر ایچیموکو
-void CRange::ProcessEntryAttempt()  // تابع فرآیند ورود (بازنویسی شده)
+// فرآیند تلاش ورود: چک ابطال، تایید قیمت و فیلتر روند، اجرای معامله اگر تایید شد (نسخه کاملاً صحیح)
+void CRange::ProcessEntryAttempt()
 {
-   // قدم اول: تشخیص جهت معتبر از متغیر ذخیره‌شده (حل باگ تشخیص ناقص)
-   bool isBuyAttempt = m_isBuyAttempt;  // استفاده از فلگ ذخیره‌شده برای جهت قطعی
-   double close1 = iClose(_Symbol, m_timeframe, 1);  // کلوز کندل قبلی برای چک ابطال و تایید
+   // قدم اول: تشخیص جهت معتبر از متغیر ذخیره‌شده
+   bool isBuyAttempt = m_isBuyAttempt;
+   double close1 = iClose(_Symbol, m_timeframe, 1);
 
    // قدم دوم: اجرای استراتژی تایید/ابطال با switch
-   switch(Inp_Confirmation_Strategy)  // سوئیچ بر اساس استراتژی انتخابی
+   switch(Inp_Confirmation_Strategy)
    {
-      case CONFIRMATION_TIMEOUT:  // حالت قدیمی با تایمر
-         m_waitCounter++;  // افزایش شمارنده کندل‌ها
-         if(m_waitCounter > Inp_Confirmation_Timeout)  // چک مهلت تمام شده
+      case CONFIRMATION_TIMEOUT:
+         m_waitCounter++;
+         if(m_waitCounter > Inp_Confirmation_Timeout)
          {
-            // تنظیم فلگ disabled برای جهت فعلی (از بین رفتن دائمی فرصت)
-            if(isBuyAttempt) m_buyAttemptDisabled = true;  // غیرفعال دائمی خرید
-            else m_sellAttemptDisabled = true;  // غیرفعال دائمی فروش
-            CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + ": مهلت تایید تمام شد. ابطال دائمی جهت " + (isBuyAttempt ? "خرید" : "فروش") + ".", m_rangeIndex);  // چاپ دیباگ
-            ResetToArmedState();  // ریست به مسلح برای جهت مخالف احتمالی
-            return;  // خروج
+            if(isBuyAttempt) m_buyAttemptDisabled = true;
+            else m_sellAttemptDisabled = true;
+            CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + ": مهلت تایید تمام شد. ابطال دائمی جهت " + (isBuyAttempt ? "خرید" : "فروش") + ".", m_rangeIndex);
+            ResetToArmedState();
+            return;
          }
-         break;  // خروج از کیس
-      case CONFIRMATION_PRICE_INVALIDATION:  // حالت جدید با قیمت (بدون محدودیت زمانی)
-        { 
-        // چک ابطال بر اساس Inp_Invalidation_Mode (شبیه به قبلی، اما بدون disabled)
-         bool isInvalid = false;  // فلگ ابطال موقت
-         if(Inp_Invalidation_Mode == INVALIDATION_RANGE_REENTRY)  // حالت صبور: بازگشت به داخل رنج
+         break;
+
+      // ================== شروع اصلاحیه آکولاد ==================
+      case CONFIRMATION_PRICE_INVALIDATION:
+      { // آکولاد باز برای شروع محدوده case
+         bool isInvalid = false;
+         if(Inp_Invalidation_Mode == INVALIDATION_RANGE_REENTRY)
          {
-            if(isBuyAttempt && close1 < m_rangeHigh) isInvalid = true;  // ابطال خرید اگر کلوز زیر سقف
-            if(!isBuyAttempt && close1 > m_rangeLow) isInvalid = true;  // ابطال فروش اگر کلوز بالای کف
+            if(isBuyAttempt && close1 < m_rangeHigh) isInvalid = true;
+            if(!isBuyAttempt && close1 > m_rangeLow) isInvalid = true;
          }
-         else  // حالت تهاجمی: عبور از خط شکست
+         else
          {
-            if(isBuyAttempt && close1 < m_potentialBuyPrice) isInvalid = true;  // ابطال خرید اگر کلوز زیر خط
-            if(!isBuyAttempt && close1 > m_potentialSellPrice) isInvalid = true;  // ابطال فروش اگر کلوز بالای خط
+            if(isBuyAttempt && close1 < m_potentialBuyPrice) isInvalid = true;
+            if(!isBuyAttempt && close1 > m_potentialSellPrice) isInvalid = true;
          }
-         if(isInvalid)  // چک ابطال موقت
+
+         if(isInvalid)
          {
-            CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + ": شرط ابطال قیمتی رخ داد. ریست موقت.", m_rangeIndex);  // چاپ دیباگ
-            ResetToArmedState();  // ریست موقت بدون disabled
-            return;  // خروج و منتظر کندل جدید
+            CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + ": شرط ابطال قیمتی رخ داد. ریست موقت.", m_rangeIndex);
+            ResetToArmedState();
+            return;
          }
-         break;  // خروج از کیس
+         break;
+      } // آکولاد بسته برای پایان محدوده case
+      // ================== پایان اصلاحیه آکولاد ===================
    }
-}
-   // قدم سوم: تایید قیمت اختیاری (اگر فعال، چک کلوز بالای/پایین سطح بریک)
-   if(Inp_PriceConfirmation_Enabled)  // چک فعال بودن تایید قیمت
+
+   // قدم سوم: تایید قیمت اختیاری (این بخش باید خارج از switch باشه)
+   if(Inp_PriceConfirmation_Enabled)
    {
-      bool priceConfirmed = (isBuyAttempt ? (close1 > m_breakerCandleLevel) : (close1 < m_breakerCandleLevel));  // چک تایید بر اساس جهت
-      if(!priceConfirmed)  // اگر تایید نشد
+      bool priceConfirmed = (isBuyAttempt ? (close1 > m_breakerCandleLevel) : (close1 < m_breakerCandleLevel));
+      if(!priceConfirmed)
       {
-         CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + ": تایید قیمت برقرار نیست. صبر برای کندل بعدی.", m_rangeIndex);  // چاپ دیباگ
-         return;  // خروج و منتظر کندل بعدی (بدون ابطال)
+         CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + ": تایید قیمت برقرار نیست. صبر برای کندل بعدی.", m_rangeIndex);
+         return;
       }
    }
 
-   // قدم چهارم: اجرای فیلتر ایچیموکو (فقط هم‌جهت مجاز، NEUTRAL صبر می‌کند)
-   ENUM_TREND_DIRECTION currentTrend = g_trendFilter.GetTrendDirection(m_trendFilterTimeframe);  // گرفتن جهت روند فعلی
-   bool filterConfirmed = false;  // فلگ تایید فیلتر
-   if(!Inp_IchimokuFilter_Enabled)  // اگر فیلتر خاموش
+   // قدم چهارم: اجرای فیلتر روند (این بخش هم باید خارج از switch باشه)
+   ENUM_TREND_DIRECTION currentTrend = g_trendFilter.GetTrendDirection(m_trendFilterTimeframe);
+   bool filterConfirmed = false;
+   if(!Inp_IchimokuFilter_Enabled)
    {
-      filterConfirmed = true;  // همیشه تایید
+      filterConfirmed = true;
    }
-   else  // فیلتر فعال
+   else
    {
-      if(isBuyAttempt && currentTrend == TREND_BUY) filterConfirmed = true;  // فقط هم‌جهت برای خرید
-      else if(!isBuyAttempt && currentTrend == TREND_SELL) filterConfirmed = true;  // فقط هم‌جهت برای فروش
-      else if(currentTrend == TREND_NEUTRAL)  // فلت: صبر کن
+      if(isBuyAttempt && currentTrend == TREND_BUY) filterConfirmed = true;
+      else if(!isBuyAttempt && currentTrend == TREND_SELL) filterConfirmed = true;
+      else if(currentTrend == TREND_NEUTRAL)
       {
-         CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + ": روند خنثی. صبر برای جهت مشخص.", m_rangeIndex);  // چاپ دیباگ
-         return;  // خروج و منتظر کندل بعدی
+         CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + ": روند خنثی. صبر برای جهت مشخص.", m_rangeIndex);
+         return;
       }
    }
 
    // اجرای معامله اگر فیلتر تایید شد
-   if(filterConfirmed)  // چک نهایی تایید
+   if(filterConfirmed)
    {
-      CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + ": تمام تاییدها برقرار. اجرای معامله.", m_rangeIndex);  // چاپ دیباگ
-      ExecuteTrade(isBuyAttempt);  // اجرای معامله با جهت ذخیره‌شده
+      CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + ": تمام تاییدها برقرار. اجرای معامله.", m_rangeIndex);
+      ExecuteTrade(isBuyAttempt);
    }
 }
+//------------------------------------------------------------------------
 
 // ریست به حالت مسلح: ریست سطح بریک بدون حذف خطوط گرافیکی یا مسیرها (برای حفظ فرصت‌ها)
 // این تابع برای ابطال موقت یا timeout استفاده می‌شود (ریست m_isBuyAttempt برای جهت جدید)
@@ -1698,7 +1719,6 @@ double CRange::GetTrailingATR()  // تابع گرفتن تریلینگ ATR
 }
 
 #endif // پایان چک include
-
 ```mq5
 //+------------------------------------------------------------------+
 //|                                                     TradeManager.mqh |
@@ -2522,4 +2542,5 @@ string CLogger::m_lastMessage = "";  // مقداردهی اولیه متغیر �
 
 #endif  // پایان
 ```
+
 
