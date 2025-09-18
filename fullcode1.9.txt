@@ -1740,6 +1740,15 @@ double CRange::GetTrailingATR()  // تابع گرفتن تریلینگ ATR
 // همچنین تغییر PartialClose به روش بستن مخالف برای سازگاری با بروکرها.
 // تغییرات نسخه 2.10: جایگزینی Print با CLogger::Log، کامنت‌گذاری دقیق هر خط، بدون تغییر در منطق. هیچ تغییری اعمال نشده زیرا بلوپرینت تغییری مشخص نکرده.
 
+
+
+//از انجایی که نیاز نبود در ورودی ها که کاربر
+   // نهایی است قرار بگیررد  این در ابتدای فایل بری راحتی خودم که دنبالش نکرد اینجا کذاشتم 
+
+int INP_minichange = 5;
+
+
+
 #ifndef TRADE_MANAGER_MQH  // چک وجود
 #define TRADE_MANAGER_MQH  // تعریف ماکرو
 
@@ -1894,7 +1903,7 @@ public:
          if(newSL > sl)  // چک بهبود SL (بالاتر برای خرید)
          {
             // چک حداقل تغییر برای جلوگیری از به‌روزرسانی‌های بیهوده و هزینه‌های اضافی
-            if(MathAbs(newSL - sl) < _Point * 5) return true;  // بدون تغییر اگر کم
+            if(MathAbs(newSL - sl) < _Point * INP_minichange) return true;  // بدون تغییر اگر کم
             CTrade trade;  // نمونه معامله
             if(trade.PositionModify(ticket, newSL, PositionGetDouble(POSITION_TP)))  // تغییر SL
             {
@@ -1921,7 +1930,7 @@ public:
          if(newSL < sl)  // چک بهبود SL (پایین‌تر برای فروش)
          {
             // چک حداقل تغییر مشابه
-            if(MathAbs(newSL - sl) < _Point * 5) return true;  // بدون تغییر اگر کم
+            if(MathAbs(newSL - sl) < _Point * INP_minichange) return true;  // بدون تغییر اگر کم
             CTrade trade;  // نمونه معامله
             if(trade.PositionModify(ticket, newSL, PositionGetDouble(POSITION_TP)))  // تغییر SL
             {
@@ -1977,6 +1986,12 @@ public:
 // RegisterTrade معامله را اضافه می‌کند، ManageAllTrades تمام معاملات را مدیریت می‌کند و حالت‌ها را بروزرسانی می‌کند.
 // ClosePosition برای بستن کامل استفاده می‌شود.
 // تغییرات جدید: کلاس جدید بر اساس بلوپرینت، با ماشین حالت داخلی برای هر معامله.
+  
+  
+   int INP_breakEvenBuffer =  5 ;//از انجایی که نیاز نبود در ورودی ها که کاربر
+   // نهایی است قرار بگیررد  این در ابتدای فایل بری راحتی خودم که دنبالش نکرد اینجا کذاشتم 
+
+
 
 #ifndef ACTIVE_TRADE_MANAGER_MQH
 #define ACTIVE_TRADE_MANAGER_MQH
@@ -2095,7 +2110,7 @@ public:
             case TRADE_RISK_FREE:  // مرحله ریسک-فری
                if(!m_managedTrades[i].isRiskFree)  // چک فلگ
                {
-                  double breakEvenBuffer = _Point * 3;  // بافر
+                  double breakEvenBuffer = _Point * INP_breakEvenBuffer;  // بافر
                   double newSL = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? m_managedTrades[i].entryPrice + breakEvenBuffer : m_managedTrades[i].entryPrice - breakEvenBuffer;  // SL جدید
                   if(CTradeManager::MoveSLToBreakEven(m_managedTrades[i].ticket, newSL))  // انتقال
                   {
@@ -2542,5 +2557,6 @@ string CLogger::m_lastMessage = "";  // مقداردهی اولیه متغیر �
 
 #endif  // پایان
 ```
+
 
 
