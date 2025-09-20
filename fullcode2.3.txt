@@ -1,3 +1,4 @@
+
 ```mq5
 //+------------------------------------------------------------------+
 //|                                                     Settings.mqh |
@@ -522,25 +523,23 @@ for(int i = 0; i < 4; i++)
         {
             ulong ticket = OrderGetInteger(ORDER_TICKET);
             string comment = OrderGetString(ORDER_COMMENT);
-            if(StringFind(comment, "PB") == 0)  // چک شروع کامنت با "PB" برای سفارشات پولبک
+            if(StringFind(comment, "PB;S") == 0)  // چک شروع کامنت با "PB;S" برای سفارشات Stop پولبک
             {
-                // پارس کامنت برای اطلاعات رنج: "PB;S;R1;H:1.1234;L:1.1200;SLD:0.0010" یا "PB;L;R1;H:1.1234;L:1.1200;SLD:0.0010"
+                // پارس کامنت برای اطلاعات رنج: "PB;S;R1;H:1.1234;L:1.1200;SLD:0.0010"
                 string parts[];
                 if(StringSplit(comment, ';', parts) >= 6)
                 {
-                    // parts[0] = "PB", parts[1] = "S" or "L", parts[2] = "R" + index, parts[3] = "H:" + high, parts[4] = "L:" + low, parts[5] = "SLD:" + dist
+                    // parts[0] = "PB", parts[1] = "S", parts[2] = "R" + index, parts[3] = "H:" + high, parts[4] = "L:" + low, parts[5] = "SLD:" + dist
                     double rec_high = StringToDouble(StringSubstr(parts[3], 2));  // استخراج high از "H:1.1234"
                     double rec_low = StringToDouble(StringSubstr(parts[4], 2));  // استخراج low از "L:1.1200"
                     double initial_sl_dist = StringToDouble(StringSubstr(parts[5], 4));  // استخراج dist از "SLD:0.0010"
                     
                     g_ranges[i].RestoreState(rec_high, rec_low, initial_sl_dist);  // بازیابی وضعیت رنج
                     g_ranges[i].SetPendingOrderTicket(ticket);  // تنظیم تیکت سفارش پندینگ
-                    // تنظیم حالت بر اساس نوع سفارش (L برای لیمیت، S برای استاپ)
-                    if(parts[1] == "L") g_ranges[i].SetCurrentState(RANGE_AWAITING_PULLBACK);  // حالت انتظار لیمیت
-                    else if(parts[1] == "S") g_ranges[i].SetCurrentState(RANGE_AWAITING_REVERSAL_TRIGGER);  // حالت انتظار استاپ
-                    else g_ranges[i].SetCurrentState(RANGE_ARMED);  // حالت امن اگر نامعتبر
+                    // تنظیم حالت به AWAITING_REVERSAL_TRIGGER چون Stop Order در انتظار فعال شدن است
+                    g_ranges[i].SetCurrentState(RANGE_AWAITING_REVERSAL_TRIGGER);  // حالت انتظار استاپ
                     
-                    CLogger::Log("سفارش پندینگ برای رنج " + IntegerToString(i + 1) + " پیدا شد. حالت بازیابی شد: " + EnumToString(g_ranges[i].GetCurrentState()), i + 1);
+                    CLogger::Log("سفارش Stop پولبک برای رنج " + IntegerToString(i + 1) + " پیدا شد. حالت بازیابی شد: " + EnumToString(g_ranges[i].GetCurrentState()), i + 1);
                     break;  // خروج از حلقه داخلی چون سفارش این رنج پیدا شد
                 }
                 else
@@ -995,6 +994,9 @@ private:
    // این تابع کش تریلینگ را مدیریت می‌کند
    double GetTrailingATR();  // گرفتن ATR برای تریلینگ
 
+   // (جدید) تابع برای کاشتن Stop Order در استراتژی پولبک
+   void PlaceReversalStopOrder(bool isBuy);  // تابع جدید برای کاشتن Stop Order
+
 public:
    // سازنده پیش‌فرض با مقادیر اولیه برای جلوگیری از garbage values
    CRange() : m_rangeIndex(0), m_magicNumber(0), m_timeframe(PERIOD_CURRENT), m_startHour(0), m_startMinute(0), m_endHour(0), m_endMinute(0),
@@ -1231,20 +1233,46 @@ void CRange::UpdateOnNewBar()  // تابع به‌روزرسانی
          break;  // خروج
       case RANGE_AWAITING_PULLBACK_TOUCH:  // انتظار لمس خط پولبک
          {
-            // منطق انتظار برای لمس خط افست (پولبک)
-            double currentPrice = SymbolInfoDouble(_Symbol, SYMBOL_ASK);  // قیمت فعلی
-            bool touchDetected = m_isBuyAttempt ? (currentPrice <= m_potentialBuyPrice) : (currentPrice >= m_potentialSellPrice);  // چک لمس
-            if(touchDetected)  // اگر لمس شد
+            // در هر کندل جدید، چک میکنیم آیا کندل قبلی خط را لمس کرده است
+            double prev_low = iLow(_Symbol, m_timeframe, 1);
+            double prev_high = iHigh(_Symbol, m_timeframe, 1);
+
+            bool touchDetected = m_isBuyAttempt ? (prev_low <= m_potentialBuyPrice) : (prev_high >= m_potentialSellPrice);
+
+            if(touchDetected)
             {
-               CLogger::Log("لمس خط پولبک تشخیص داده شد. انتقال به AWAITING_REVERSAL_TRIGGER.", m_rangeIndex);  // لاگ
-               // ثبت Stop Order در سمت مخالف لمس
-               PlacePullbackStrategyOrders(m_isBuyAttempt);  // فراخوانی برای ثبت Stop Order
-               m_currentState = RANGE_AWAITING_REVERSAL_TRIGGER;  // تغییر حالت
+                CLogger::Log("لمس خط پولبک در کندل قبلی تایید شد. در حال کاشتن تله Stop Order.", m_rangeIndex);
+                PlaceReversalStopOrder(m_isBuyAttempt); // تابع جدید ما اینجا صدا زده میشود
             }
             break;
          }
-      case RANGE_AWAITING_REVERSAL_TRIGGER:  // انتظار فعال شدن Stop Order
+      case RANGE_AWAITING_REVERSAL_TRIGGER: // انتظار فعال شدن Stop Order
          {
+            // --- شروع تسک ۱: قانون ابطال با SL ---
+            if (m_pendingOrderTicket != 0 && OrderSelect(m_pendingOrderTicket))
+            {
+                double stopLossPrice = OrderGetDouble(ORDER_SL);
+                double prev_low = iLow(_Symbol, m_timeframe, 1);
+                double prev_high = iHigh(_Symbol, m_timeframe, 1);
+                bool invalidated = false;
+
+                if (m_isBuyAttempt && prev_low <= stopLossPrice) invalidated = true;
+                else if (!m_isBuyAttempt && prev_high >= stopLossPrice) invalidated = true;
+
+                if (invalidated)
+                {
+                    CLogger::Log("سیگنال پولبک باطل شد! قیمت به سطح SL رسید قبل از فعال شدن.", m_rangeIndex);
+                    CTrade trade;
+                    trade.OrderDelete(m_pendingOrderTicket);
+                    m_pendingOrderTicket = 0;
+                    // برای این جهت دیگر تلاش نمیکنیم چون ناموفق بود
+                    if (m_isBuyAttempt) m_buyAttemptDisabled = true; else m_sellAttemptDisabled = true;
+                    ResetToArmedState();
+                    break; // از این کیس خارج شو
+                }
+            }
+            // --- پایان تسک ۱ ---
+
             // چک فعال شدن Stop Order: جستجو در پوزیشن‌های باز
             bool orderActivated = false;  // فلگ
             for(int pos = 0; pos < PositionsTotal(); pos++)  // حلقه پوزیشن‌ها
@@ -1262,6 +1290,7 @@ void CRange::UpdateOnNewBar()  // تابع به‌روزرسانی
                      orderActivated = true;  // فلگ
                      CLogger::Log("Stop Order فعال شد. معامله واگذار به مدیر معاملات. تیکت: " + IntegerToString(posTicket), m_rangeIndex);  // لاگ
                      DisableOppositePath(m_isBuyAttempt);  // غیرفعال کردن مخالف
+                     if (m_isBuyAttempt) m_buyAttemptDisabled = true; else m_sellAttemptDisabled = true; // یک شانس برای هر جهت
                      break;
                   }
                }
@@ -1653,15 +1682,104 @@ void CRange::ExecuteMarketOrder(bool isBuy)  // اجرای سفارش مارکت
    m_currentState = RANGE_TRADE_ACTIVE;
    CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + " - " + (isBuy ? "BUY" : "SELL") + " Market Order Placed! Ticket: " + (string)m_activeTicket, m_rangeIndex);
    DisableOppositePath(isBuy);
+   // یک شانس برای هر جهت: غیرفعال کردن تلاش مجدد برای این جهت
+   if (isBuy) m_buyAttemptDisabled = true; else m_sellAttemptDisabled = true;
 }
 
-// (جدید) ثبت استراتژی پولبک: شروع انتظار برای لمس خط پولبک و سپس ثبت Stop Order
+// (جدید) ثبت استراتژی پولبک: شروع انتظار برای لمس خط پولبک
 // این تابع استراتژی جدید پولبک را مدیریت می‌کند
 void CRange::PlacePullbackStrategyOrders(bool isBuy)  // ثبت استراتژی پولبک
 {
-   // این تابع فقط حالت را به AWAITING_PULLBACK_TOUCH تغییر می‌دهد
-   m_currentState = RANGE_AWAITING_PULLBACK_TOUCH;  // شروع انتظار لمس
-   CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + ": استراتژی پولبک شروع شد. منتظر لمس خط پولبک.", m_rangeIndex);  // لاگ شروع
+   // این تابع فقط حالت را برای شروع فرآیند پولبک تنظیم می‌کند
+   m_currentState = RANGE_AWAITING_PULLBACK_TOUCH;
+   CLogger::Log("تصمیم به استراتژی پولبک گرفته شد. انتقال به حالت انتظار برای لمس خط.", m_rangeIndex);
+
+   // OCO: به محض تصمیم به پولبک برای یک جهت، مسیر مخالف باید غیرفعال شود
+   DisableOppositePath(isBuy);
+}
+
+// (جدید) تابع برای کاشتن Stop Order در استراتژی پولبک
+// این تابع Stop Order را به صورت دینامیک (با buffer) می‌کارد، SL و حجم را محاسبه می‌کند
+void CRange::PlaceReversalStopOrder(bool isBuy)
+{
+   // 1. محاسبه متغیرهای اولیه
+   double stopBuffer = 5 * _Point; // این مقدار میتواند در آینده به ورودی تبدیل شود
+   double currentAsk = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+   double currentBid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   double stopPrice = 0;
+   double entryPriceForSL = 0; // قیمتی که SL بر اساس آن محاسبه میشود
+
+   // 2. محاسبه دینامیک قیمت Stop Order
+   if (isBuy)
+   {
+      // قیمت استاپ، کمی بالاتر از بیشینه (قیمت فعلی، خط شکست) خواهد بود
+       stopPrice = NormalizePrice(fmax(m_potentialBuyPrice, currentAsk) + stopBuffer);
+       entryPriceForSL = stopPrice; // برای محاسبه حجم، قیمت ورود را همان قیمت استاپ در نظر میگیریم
+   }
+   else
+   {
+       // قیمت استاپ، کمی پایین‌تر از کمینه (قیمت فعلی، خط شکست) خواهد بود
+       stopPrice = NormalizePrice(fmin(m_potentialSellPrice, currentBid) - stopBuffer);
+       entryPriceForSL = stopPrice;
+   }
+
+   // 3. محاسبه دقیق SL و حجم (این بخش شبیه ExecuteMarketOrder است)
+   double adjustment;
+   if(m_slCalcMode == SL_CALC_ATR) {
+       double atr_buffer[];
+       ArraySetAsSeries(atr_buffer, true);
+       if(CopyBuffer(m_slAtrHandle, 0, 1, 1, atr_buffer) > 0)
+           adjustment = atr_buffer[0] * m_slAtrMultiplier;
+       else { CLogger::Log("خطا در گرفتن ATR برای SL پولبک.", m_rangeIndex); return; }
+   } else {
+       adjustment = (m_rangeHigh - m_rangeLow) * m_slAtrMultiplier / 100.0;
+   }
+
+   double basePoint = m_slStrategy == SL_OPPOSITE_SIDE ? (isBuy ? m_rangeLow : m_rangeHigh) : (isBuy ? m_rangeHigh : m_rangeLow);
+   double slPrice = isBuy ? NormalizePrice(basePoint - adjustment) : NormalizePrice(basePoint + adjustment);
+   m_initialSlDistance = MathAbs(entryPriceForSL - slPrice); // SL Distance بر اساس قیمت استاپ محاسبه میشود
+
+   double lotSize = CRiskManager::CalculateLotSize(InpRiskPercent, m_initialSlDistance);
+   if (lotSize == 0) { CLogger::Log("حجم صفر برای سفارش پولبک.", m_rangeIndex); ResetToArmedState(); return; }
+
+   // 4. ساخت و ارسال درخواست Stop Order
+   CTrade trade;
+   MqlTradeRequest request;
+   MqlTradeResult result;
+   ZeroMemory(request);
+
+   request.action = TRADE_ACTION_PENDING;
+   request.symbol = _Symbol;
+   request.volume = lotSize;
+   request.type = isBuy ? ORDER_TYPE_BUY_STOP : ORDER_TYPE_SELL_STOP;
+   request.price = stopPrice;
+   request.sl = slPrice;
+   request.magic = m_magicNumber;
+   request.comment = StringFormat("PB;S;R%d;H:%.5f;L:%.5f;SLD:%.5f", m_rangeIndex, m_rangeHigh, m_rangeLow, m_initialSlDistance);
+   request.type_time = ORDER_TIME_GTC; // یا میتوانی انقضا تعیین کنی
+
+   if (!trade.OrderSend(request, result) || result.order == 0)
+   {
+       CLogger::Log("خطا در کاشتن Stop Order پولبک: " + IntegerToString(result.retcode), m_rangeIndex);
+       ResetToArmedState();
+       return;
+   }
+
+   m_pendingOrderTicket = result.order;
+   m_currentState = RANGE_AWAITING_REVERSAL_TRIGGER;
+   CLogger::Log("تله Stop Order پولبک با تیکت " + (string)m_pendingOrderTicket + " کاشته شد.", m_rangeIndex);
+}
+
+// ثبت استراتژی پولبک: شروع انتظار برای لمس خط پولبک و سپس ثبت Stop Order
+// این تابع استراتژی جدید پولبک را مدیریت می‌کند
+void CRange::PlacePullbackStrategyOrders(bool isBuy)  // ثبت استراتژی پولبک
+{
+    // این تابع فقط حالت را برای شروع فرآیند پولبک تنظیم می‌کند
+    m_currentState = RANGE_AWAITING_PULLBACK_TOUCH;
+    CLogger::Log("تصمیم به استراتژی پولبک گرفته شد. انتقال به حالت انتظار برای لمس خط.", m_rangeIndex);
+
+    // OCO: به محض تصمیم به پولبک برای یک جهت، مسیر مخالف باید غیرفعال شود
+    DisableOppositePath(isBuy);
 }
 
 // غیرفعال کردن مسیر مخالف: حذف خط و ریست قیمت بالقوه برای جلوگیری از سیگنال دوگانه
@@ -1902,7 +2020,6 @@ public:
       MqlTradeRequest request;  // درخواست معامله
       MqlTradeResult result;  // نتیجه معامله
       ZeroMemory(request);  // صفر کردن درخواست
-      ZeroMemory(result);  // صفر کردن نتیجه
 
       request.action   = TRADE_ACTION_DEAL;              // نوع عملیات: معامله
       request.symbol   = symbolName;                     // نماد معامله
@@ -2189,7 +2306,7 @@ public:
                if(!m_managedTrades[i].isRiskFree)  // چک فلگ
                {
                   double breakEvenBuffer = _Point * INP_breakEvenBuffer;  // بافر
-                  double newSL = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? m_managedTrades[i].entryPrice + breakEvenBuffer : m_managedTrades[i].entryPrice - breakEvenBuffer;  // SL جدید
+                  double newSL = _Point * INP_breakEvenBuffer;  // SL جدید
                   if(CTradeManager::MoveSLToBreakEven(m_managedTrades[i].ticket, newSL))  // انتقال
                   {
                      m_managedTrades[i].isRiskFree = true;  // تنظیم فلگ
