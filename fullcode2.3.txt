@@ -1,13 +1,3 @@
-
-لطفا یک راهنمایی دقیق بکن که برای رفع این خطای کامپایل چه کار کنم
-
-
-'PlacePullbackStrategyOrders' - function already defined and has body	CRange.mqh	940	14
-   see declaration of function 'CRange::PlacePullbackStrategyOrders'	CRange.mqh	131	9
-
-
-
-
 //+------------------------------------------------------------------+
 //|                                                     Settings.mqh |
 //|                       Copyright 2025, Hipoalgorithm Team         |
@@ -1716,17 +1706,7 @@ void CRange::ExecuteMarketOrder(bool isBuy)  // اجرای سفارش مارکت
    if (isBuy) m_buyAttemptDisabled = true; else m_sellAttemptDisabled = true;
 }
 
-// (جدید) ثبت استراتژی پولبک: شروع انتظار برای لمس خط پولبک
-// این تابع استراتژی جدید پولبک را مدیریت می‌کند
-void CRange::PlacePullbackStrategyOrders(bool isBuy)  // ثبت استراتژی پولبک
-{
-   // این تابع فقط حالت را برای شروع فرآیند پولبک تنظیم می‌کند
-   m_currentState = RANGE_AWAITING_PULLBACK_TOUCH;
-   CLogger::Log("تصمیم به استراتژی پولبک گرفته شد. انتقال به حالت انتظار برای لمس خط.", m_rangeIndex);
 
-   // OCO: به محض تصمیم به پولبک برای یک جهت، مسیر مخالف باید غیرفعال شود
-   DisableOppositePath(isBuy);
-}
 
 // (جدید) تابع برای کاشتن Stop Order در استراتژی پولبک
 // این تابع Stop Order را به صورت دینامیک (با buffer) می‌کارد، SL و حجم را محاسبه می‌کند
@@ -2912,4 +2892,3 @@ public:
 };
 
 #endif  // پایان
-
