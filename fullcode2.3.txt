@@ -1,3 +1,13 @@
+
+لطفا یک راهنمایی دقیق بکن که برای رفع این خطای کامپایل چه کار کنم
+
+
+'PlacePullbackStrategyOrders' - function already defined and has body	CRange.mqh	940	14
+   see declaration of function 'CRange::PlacePullbackStrategyOrders'	CRange.mqh	131	9
+
+
+
+
 //+------------------------------------------------------------------+
 //|                                                     Settings.mqh |
 //|                       Copyright 2025, Hipoalgorithm Team         |
@@ -2902,3 +2912,4 @@ public:
 };
 
 #endif  // پایان
+
