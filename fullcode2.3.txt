@@ -1,3 +1,4 @@
+
 //+------------------------------------------------------------------+
 //|                                                     Settings.mqh |
 //|                       Copyright 2025, Hipoalgorithm Team         |
@@ -498,12 +499,16 @@ for(int i = 0; i < 4; i++)
             );
             CLogger::Log("معامله بازیابی شده با موفقیت به ActiveTradeManager ثبت شد.", i + 1);
 
+
             // ۴. چک کردن اینکه آیا معامله قبلا ریسک-فری شده یا نه
-            if (MathAbs(sl - openPrice) < (_Point * 5))
-            {
-               g_tradeManager.SetPartialClosedFlag(ticket, true);
-               CLogger::Log("معامله رنج " + IntegerToString(i+1) + " قبلاً ریسک-فری شده. حالت بازیابی شد.", i + 1);
-            }
+              if (MathAbs(sl - openPrice) < (_Point * 5)) // یک روش ساده برای تشخیص ریسک-فری
+              {
+                 g_tradeManager.SetPartialClosedFlag(ticket, true);    // فرض میکنیم پله‌ای هم خارج شده
+                 g_tradeManager.SetRiskFreeFlag(ticket, true);       // فلگ ریسک-فری رو هم فعال میکنیم
+                 g_tradeManager.SetManagementState(ticket, TRADE_TRAILING); // مستقیم میبریمش به حالت تریلینگ
+                 CLogger::Log("معامله رنج " + IntegerToString(i+1) + " قبلاً ریسک-فری شده. حالت به TRAILING بازیابی شد.", i + 1);
+              }
+
             
             break; // خروج از حلقه داخلی چون معامله این رنج پیدا شد
         }
@@ -1706,7 +1711,17 @@ void CRange::ExecuteMarketOrder(bool isBuy)  // اجرای سفارش مارکت
    if (isBuy) m_buyAttemptDisabled = true; else m_sellAttemptDisabled = true;
 }
 
+// (جدید) ثبت استراتژی پولبک: شروع انتظار برای لمس خط پولبک
+// این تابع استراتژی جدید پولبک را مدیریت می‌کند
+void CRange::PlacePullbackStrategyOrders(bool isBuy)  // ثبت استراتژی پولبک
+{
+   // این تابع فقط حالت را برای شروع فرآیند پولبک تنظیم می‌کند
+   m_currentState = RANGE_AWAITING_PULLBACK_TOUCH;
+   CLogger::Log("تصمیم به استراتژی پولبک گرفته شد. انتقال به حالت انتظار برای لمس خط.", m_rangeIndex);
 
+   // OCO: به محض تصمیم به پولبک برای یک جهت، مسیر مخالف باید غیرفعال شود
+   DisableOppositePath(isBuy);
+}
 
 // (جدید) تابع برای کاشتن Stop Order در استراتژی پولبک
 // این تابع Stop Order را به صورت دینامیک (با buffer) می‌کارد، SL و حجم را محاسبه می‌کند
@@ -2152,16 +2167,19 @@ public:
 
       double trailing = posType == POSITION_TYPE_BUY ? currentPrice - trailingDistance : currentPrice + trailingDistance;  // محاسبه SL جدید
       trailing = NormalizeDouble(trailing, _Digits);  // نرمالایز
-      if((posType == POSITION_TYPE_BUY && trailing > sl) || (posType == POSITION_TYPE_BUY && trailing < sl))  // چک بهبود
-      {
-         if(MathAbs(trailing - sl) < _Point * INP_minichange) return true;  // بدون تغییر اگر کم
-         CTrade trade;  // نمونه
-         if(trade.PositionModify(ticket, trailing, PositionGetDouble(POSITION_TP)))  // تغییر
-         {
-            CLogger::Log("تریلینگ SL به‌روزرسانی شد برای تیکت " + (string)ticket);  // لاگ
-            return true;
-         }
-      }
+      // در فایل TradeManager.mqh
+// ...
+if((posType == POSITION_TYPE_BUY && trailing > sl) || (posType == POSITION_TYPE_SELL && trailing < sl)) // <--- این درسته!
+{
+   if(MathAbs(trailing - sl) < _Point * INP_minichange) return true;
+   CTrade trade;
+   if(trade.PositionModify(ticket, trailing, PositionGetDouble(POSITION_TP)))
+   {
+      CLogger::Log("تریلینگ SL به‌روزرسانی شد برای تیکت " + (string)ticket);
+      return true;
+   }
+}
+
       return true;
    }
 
@@ -2292,11 +2310,12 @@ public:
          {
             CLogger::Log("معامله با تیکت " + (string)m_managedTrades[i].ticket + " بسته شده. حذف از لیست.", m_managedTrades[i].rangeIndex);  // لاگ بسته شدن
            
-           int rangeIdx_to_reset = m_managedTrades[i].rangeIndex;
-           ArrayRemove(m_managedTrades, i, 1);  // حذف از آرایه
-            g_ranges[rangeIdx_to_reset- 1].SetCurrentState(RANGE_IDLE);  // اطلاع به رنج مربوطه
-            continue;  // پرش
-         }
+           int rangeIdx_to_reset = m_managedTrades[i].rangeIndex; // ایندکس رو قبل از حذف ذخیره کن
+ArrayRemove(m_managedTrades, i, 1);  // حذف از آرایه
+g_ranges[rangeIdx_to_reset - 1].SetCurrentState(RANGE_EXPIRED); // <--- این درسته! این حالت باعث اجرای پاکسازی میشه
+continue;
+
+}
 
          // لاگ ورود به مدیریت معامله
          CLogger::Log("------ مدیریت معامله تیکت " + (string)m_managedTrades[i].ticket + " در حالت " + EnumToString(m_managedTrades[i].currentState) + " ------", m_managedTrades[i].rangeIndex);  // عنوان حالت مدیریت
@@ -2363,10 +2382,38 @@ public:
          }
       }
    }
+   
+   // این کد رو به انتهای کلاس CActiveTradeManager اضافه کن
+
+   // (جدید) تنظیم فلگ ریسک-فری برای بازیابی
+   void SetRiskFreeFlag(ulong ticket, bool value)
+   {
+      for(int i = 0; i < ArraySize(m_managedTrades); i++)
+      {
+         if(m_managedTrades[i].ticket == ticket)
+         {
+            m_managedTrades[i].isRiskFree = value;
+            break;
+         }
+      }
+   }
+
+   // (جدید) تنظیم مستقیم حالت مدیریت معامله برای بازیابی
+   void SetManagementState(ulong ticket, ENUM_TRADE_MANAGEMENT_STATE state)
+   {
+      for(int i = 0; i < ArraySize(m_managedTrades); i++)
+      {
+         if(m_managedTrades[i].ticket == ticket)
+         {
+            m_managedTrades[i].currentState = state;
+            break;
+         }
+      }
+   }
+
 };
 
-// مقداردهی اولیه متغیر استاتیک
-string CLogger::m_lastMessage = "";  // اولیه برای لاگ
+
 
 #endif
 
