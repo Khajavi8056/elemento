@@ -1795,17 +1795,6 @@ void CRange::PlaceReversalStopOrder(bool isBuy)
    CLogger::Log("تله Stop Order پولبک با تیکت " + (string)m_pendingOrderTicket + " کاشته شد.", m_rangeIndex);
 }
 
-// ثبت استراتژی پولبک: شروع انتظار برای لمس خط پولبک و سپس ثبت Stop Order
-// این تابع استراتژی جدید پولبک را مدیریت می‌کند
-void CRange::PlacePullbackStrategyOrders(bool isBuy)  // ثبت استراتژی پولبک
-{
-    // این تابع فقط حالت را برای شروع فرآیند پولبک تنظیم می‌کند
-    m_currentState = RANGE_AWAITING_PULLBACK_TOUCH;
-    CLogger::Log("تصمیم به استراتژی پولبک گرفته شد. انتقال به حالت انتظار برای لمس خط.", m_rangeIndex);
-
-    // OCO: به محض تصمیم به پولبک برای یک جهت، مسیر مخالف باید غیرفعال شود
-    DisableOppositePath(isBuy);
-}
 
 // غیرفعال کردن مسیر مخالف: حذف خط و ریست قیمت بالقوه برای جلوگیری از سیگنال دوگانه
 // این تابع OCO را شبیه‌سازی می‌کند
