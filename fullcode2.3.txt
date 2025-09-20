@@ -1,5 +1,3 @@
-
-```mq5
 //+------------------------------------------------------------------+
 //|                                                     Settings.mqh |
 //|                       Copyright 2025, Hipoalgorithm Team         |
@@ -237,9 +235,12 @@ input double Inp_MinCandleBodyRatio = 0.3; // حداقل نسبت بدنه به 
 input double Inp_ExplosiveCandleBodyRatio = 0.7; // حداقل نسبت بدنه به کل کندل برای "انفجاری بودن" (0.1-0.9)
 
 #endif  // پایان چک include
-```
 
-```mq5
+
+
+
+
+
 //+------------------------------------------------------------------+
 //|                                                       Elemento.mq5 |
 //|                       Copyright 2025, Hipoalgorithm Team         |
@@ -805,9 +806,15 @@ bool IsMarketClosed()  // تابع چک بسته بودن بازار
    CLogger::Log("بازار تعطیل است (خارج از جلسه).");  // چاپ دیباگ
    return true;  // بازگشت درست
 }
-```
 
-```mq5
+
+
+
+
+
+
+
+
 //+------------------------------------------------------------------+
 //|                                                          Utils.mqh |
 //|                       Copyright 2025, Hipoalgorithm Team         |
@@ -839,9 +846,13 @@ double NormalizePrice(double price)  // تابع نرمال‌سازی قیمت
 }
 
 #endif  // پایان چک include
-```
 
-```mq5
+
+
+
+
+
+
 //+------------------------------------------------------------------+
 //|                                                         CRange.mqh |
 //|                       Copyright 2025, Hipoalgorithm Team         |
@@ -1084,6 +1095,15 @@ public:
       m_initialSlDistance = initial_sl_distance;  // ذخیره فاصله SL
       CLogger::Log("وضعیت رنج " + IntegerToString(m_rangeIndex) + " با موفقیت بازیابی شد.", m_rangeIndex);  // چاپ موفقیت
    }
+
+   // Getter برای زمان کندل شکست (برای BreakoutAnalyzer)
+   datetime GetBreakerCandleTime() const { return m_breakerCandleTime; }
+
+   // Getter برای زمان کندل تاییدیه (برای BreakoutAnalyzer)
+   datetime GetConfirmationCandleTime() const { return m_confirmationCandleTime; }
+
+   // Getter برای جهت خرید/فروش (برای BreakoutAnalyzer)
+   bool GetIsBuyAttempt() const { return m_isBuyAttempt; }
 };
 
 // پیاده‌سازی توابع کلاس CRange (خارج از تعریف کلاس برای خوانایی)
@@ -1966,9 +1986,19 @@ double CRange::GetTrailingATR()  // تابع گرفتن تریلینگ ATR
 }
 
 #endif // پایان چک include
-```
 
-```mq5
+
+
+
+
+
+
+
+
+
+
+
+
 //+------------------------------------------------------------------+
 //|                                                     TradeManager.mqh |
 //|                       Copyright 2025, Hipoalgorithm Team         |
@@ -2170,9 +2200,12 @@ public:
 };
 
 #endif  // پایان
-```
 
-```mq5
+
+
+
+
+
 //+------------------------------------------------------------------+
 //|                                          CActiveTradeManager.mqh |
 //|                       Copyright 2025, Hipoalgorithm Team         |
@@ -2306,7 +2339,7 @@ public:
                if(!m_managedTrades[i].isRiskFree)  // چک فلگ
                {
                   double breakEvenBuffer = _Point * INP_breakEvenBuffer;  // بافر
-                  double newSL = _Point * INP_breakEvenBuffer;  // SL جدید
+                  double newSL = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? m_managedTrades[i].entryPrice + breakEvenBuffer : m_managedTrades[i].entryPrice - breakEvenBuffer;  // SL جدید
                   if(CTradeManager::MoveSLToBreakEven(m_managedTrades[i].ticket, newSL))  // انتقال
                   {
                      m_managedTrades[i].isRiskFree = true;  // تنظیم فلگ
@@ -2346,9 +2379,15 @@ public:
 string CLogger::m_lastMessage = "";  // اولیه برای لاگ
 
 #endif
-```
 
-```mq5
+
+
+
+
+
+
+
+
 //+------------------------------------------------------------------+
 //|                                                     RiskManager.mqh |
 //|                       Copyright 2025, Hipoalgorithm Team         |
@@ -2417,10 +2456,12 @@ public:
    }
 };
 
-#endif  // پایان
-```
+#endif  // پایان|
 
-```mq5
+
+
+
+
 //+------------------------------------------------------------------+
 //|                                                     TimeHelper.mqh |
 //|                       Copyright 2025, Hipoalgorithm Team         |
@@ -2501,9 +2542,15 @@ public:
 };
 
 #endif  // پایان
-```
 
-```mq5
+
+
+
+
+
+
+
+
 //+------------------------------------------------------------------+
 //|                                                     TrendFilter.mqh |
 //|                       Copyright 2025, Hipoalgorithm Team         |
@@ -2647,9 +2694,13 @@ public:
 };
 
 #endif  // پایان
-```
 
-```mq5
+
+
+
+
+
+
 //+------------------------------------------------------------------+
 //|                                                   VisualManager.mqh |
 //|                       Copyright 2025, Hipoalgorithm Team         |
@@ -2726,9 +2777,12 @@ public:
 };
 
 #endif  // پایان
-```
 
-```mq5
+
+
+
+
+
 //+------------------------------------------------------------------+
 //|                                                        Logger.mqh |
 //|                       Copyright 2025, Hipoalgorithm Team         |
@@ -2778,9 +2832,17 @@ public:
 string CLogger::m_lastMessage = "";  // مقداردهی اولیه متغیر استاتیک
 
 #endif  // پایان
-```
 
-```mq5
+
+
+
+
+
+
+
+
+
+
 //+------------------------------------------------------------------+
 //|                                                BreakoutAnalyzer.mqh |
 //|                       Copyright 2025, Hipoalgorithm Team         |
@@ -2796,19 +2858,19 @@ string CLogger::m_lastMessage = "";  // مقداردهی اولیه متغیر �
 #ifndef BREAKOUT_ANALYZER_MQH  // چک وجود
 #define BREAKOUT_ANALYZER_MQH  // تعریف
 
-#include "CRange.mqh"  // برای اشاره‌گر به CRange
+class CRange;  // forward declaration to avoid circular include
 
 // کلاس BreakoutAnalyzer برای تحلیل قدرت شکست (استاتیک)
 class BreakoutAnalyzer  // کلاس تحلیل
 {
 public:
    // تحلیل قدرت شکست: اگر انفجاری باشد true، иначе false
-   static bool IsBreakoutExplosive(const CRange*range)  // تحلیل با اشاره‌گر به رنج
+   static bool IsBreakoutExplosive(const CRange& range)  // تحلیل با اشاره‌گر به رنج
    {
       if(!Inp_AdaptiveEntry_Enabled) return false;  // اگر خاموش، همیشه پولبک
 
       // قدم اول: فیلتر اولیه قدرت کندل (چک ضعیف نبودن)
-      int breakerShift = iBarShift(_Symbol, range.GetTimeframe(), range.m_breakerCandleTime);  // شیفت بریک
+      int breakerShift = iBarShift(_Symbol, range.GetTimeframe(), range.GetBreakerCandleTime());  // شیفت بریک
       double breakerOpen = iOpen(_Symbol, range.GetTimeframe(), breakerShift);  // اوپن بریک
       double breakerClose = iClose(_Symbol, range.GetTimeframe(), breakerShift);  // کلوز بریک
       double breakerHigh = iHigh(_Symbol, range.GetTimeframe(), breakerShift);  // های بریک
@@ -2825,12 +2887,14 @@ public:
             return bodyRatio >= Inp_ExplosiveCandleBodyRatio;  // چک انفجاری
 
          case MODE_CANDLE_CONFIRM:
-            return range.m_confirmationCandleTime == iTime(_Symbol, range.GetTimeframe(), breakerShift - 1);  // چک تایید فوری
+            return range.GetConfirmationCandleTime() == iTime(_Symbol, range.GetTimeframe(), breakerShift - 1);  // چک تایید فوری
 
          case MODE_CANDLE_CONFIRM_ICHI:
-            if(range.m_confirmationCandleTime != iTime(_Symbol, range.GetTimeframe(), breakerShift - 1)) return false;  // چک تایید فوری
-            ENUM_TREND_DIRECTION trendAtConfirm = g_trendFilter.GetTrendDirectionForTime(range.GetTrendFilterTimeframe(), range.m_confirmationCandleTime);  // جهت در تایید
-            return trendAtConfirm != TREND_NEUTRAL && (range.m_isBuyAttempt ? trendAtConfirm == TREND_BUY : trendAtConfirm == TREND_SELL);  // هم‌جهت
+            {
+               if(range.GetConfirmationCandleTime() != iTime(_Symbol, range.GetTimeframe(), breakerShift - 1)) return false;  // چک تایید فوری
+               ENUM_TREND_DIRECTION trendAtConfirm = g_trendFilter.GetTrendDirectionForTime(range.GetTrendFilterTimeframe(), range.GetConfirmationCandleTime());  // جهت در تایید
+               return trendAtConfirm != TREND_NEUTRAL && (range.GetIsBuyAttempt() ? trendAtConfirm == TREND_BUY : trendAtConfirm == TREND_SELL);  // هم‌جهت
+            }
 
          default: return false;  // پیش‌فرض
       }
@@ -2838,54 +2902,3 @@ public:
 };
 
 #endif  // پایان
-```
-
-
-
-
-
-
-
-
-
-
-لطفا ابتدا کد بالا را دقیق بررسی کنید و سپس خطا های کامپایلی زیر را اصلاح کنید و در نهایت کد کامل اکسپرت را به شکل کامل و تمامی فایل ها به شکل کامل بازنویسی و ارسال کنید کامنت کذاریس دقیق را رعایت کنید
-
-
-
-declaration without type	BreakoutAnalyzer.mqh	23	42
-'*' - comma expected	BreakoutAnalyzer.mqh	23	48
-'PlacePullbackStrategyOrders' - function already defined and has body	CRange.mqh	931	14
-   see declaration of function 'CRange::PlacePullbackStrategyOrders'	CRange.mqh	131	9
-undeclared identifier	BreakoutAnalyzer.mqh	28	45
-undeclared identifier	BreakoutAnalyzer.mqh	28	67
-';' - unexpected token	BreakoutAnalyzer.mqh	28	93
-';' - unexpected token	BreakoutAnalyzer.mqh	28	93
-')' - semicolon expected	BreakoutAnalyzer.mqh	29	77
-undeclared identifier	BreakoutAnalyzer.mqh	30	45
-cannot convert enum	BreakoutAnalyzer.mqh	30	45
-   built-in: double iClose(const string,ENUM_TIMEFRAMES,int)	BreakoutAnalyzer.mqh	30	29
-undeclared identifier	BreakoutAnalyzer.mqh	31	43
-cannot convert enum	BreakoutAnalyzer.mqh	31	43
-   built-in: double iHigh(const string,ENUM_TIMEFRAMES,int)	BreakoutAnalyzer.mqh	31	28
-undeclared identifier	BreakoutAnalyzer.mqh	32	41
-cannot convert enum	BreakoutAnalyzer.mqh	32	41
-   built-in: double iLow(const string,ENUM_TIMEFRAMES,int)	BreakoutAnalyzer.mqh	32	27
-undeclared identifier	BreakoutAnalyzer.mqh	33	48
-undeclared identifier	BreakoutAnalyzer.mqh	45	20
-undeclared identifier	BreakoutAnalyzer.mqh	45	69
-cannot convert enum	BreakoutAnalyzer.mqh	45	69
-   built-in: datetime iTime(const string,ENUM_TIMEFRAMES,int)	BreakoutAnalyzer.mqh	45	54
-undeclared identifier	BreakoutAnalyzer.mqh	48	16
-undeclared identifier	BreakoutAnalyzer.mqh	48	65
-cannot convert enum	BreakoutAnalyzer.mqh	48	65
-   built-in: datetime iTime(const string,ENUM_TIMEFRAMES,int)	BreakoutAnalyzer.mqh	48	50
-initialization of variable skipped by 'case' label, use { }	BreakoutAnalyzer.mqh	49	34
-undeclared identifier	BreakoutAnalyzer.mqh	49	90
-undeclared identifier	BreakoutAnalyzer.mqh	49	123
-';' - unexpected token	BreakoutAnalyzer.mqh	49	154
-';' - unexpected token	BreakoutAnalyzer.mqh	49	154
-cannot convert parameter 'CRange&' to 'int'	CRange.mqh	731	77
-   bool BreakoutAnalyzer::IsBreakoutExplosive(int)	BreakoutAnalyzer.mqh	23	16
-27 errors, 0 warnings		27	0
-
