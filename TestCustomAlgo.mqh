@@ -3,9 +3,8 @@
 //| Copyright 2025, HipoAlgoritm - Quantum Division                  |
 //| t.me/hipoalgoritm                                                |
 //+------------------------------------------------------------------+
-//| نسخه 2.2: بازمهندسی با تمرکز بر پایداری، کیفیت و مقاومت       |
-//| در برابر اورفیتینگ، با مقیاس‌بندی متعادل برای اپتیمایزر      |
-//| به‌روزرسانی: افزودن تحلیل مدت زمان معامله و ضریب ثبات عملکرد|
+//| نسخه 2.3: گسترش بازه امتیازها برای تمایز بیشتر و اعداد بزرگ‌تر |
+//| به‌روزرسانی: تغییر فیلتر اولیه به بازگشت 0، افزایش مقیاس، ملایم‌سازی لگاریتم |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2025, HipoAlgoritm - Quantum Division"
 #property link      "t.me/hipoalgoritm"
@@ -14,7 +13,7 @@
 //--- گروه: تنظیمات بهینه‌سازی سفارشی ---
 // این گروه شامل پارامترهای ورودی برای تنظیمات اصلی بهینه‌سازی است.
 input group "تنظیمات اصلی بهینه‌سازی";
-input int    InpMinTradesPerYear      = 20;  // حداقل تعداد معاملات قابل قبول در یک سال
+input int    InpMinTradesPerYear      = 10;  // حداقل تعداد معاملات قابل قبول در یک سال [اصلاح‌شده: از 20 به 10 برای کمتر سخت‌گیر بودن]
 input double InpMaxAcceptableDrawdown = 30.0; // حداکثر دراوداون قابل قبول به درصد
 
 input group "فیلتر کیفیت معامله (مقابله با اورفیتینگ)";
@@ -547,7 +546,7 @@ double CalculatePerformanceStabilityFactor()
 }
 
 //+------------------------------------------------------------------+
-//| تابع اصلی رویداد تستر (OnTester) - نسخه 2.2 با به‌روزرسانی‌ها  |
+//| تابع اصلی رویداد تستر (OnTester) - نسخه 2.3 با گسترش بازه امتیاز |
 //| معماری جدید با فرمول امتیازدهی یکپارچه و چندعاملی             |
 //+------------------------------------------------------------------+
 //| هدف: محاسبه امتیاز نهایی برای بهینه‌سازی استراتژی بر اساس معیارهای |
@@ -579,7 +578,7 @@ double OnTester()
       recovery_factor < 0.3)
    {
       Print("رد شده در فیلتر اولیه: معاملات=", total_trades, ", PF=", profit_factor, ", سود=", net_profit, ", RF=", recovery_factor);
-      return 1.0; // بازگشت یک امتیاز کوچک به جای صفر
+      return 0.0; // [اصلاح‌شده: بازگشت 0 به جای 1 برای رد کامل پاس‌های بد و گسترش بازه]
    }
 
    // --- مرحله 3: محاسبه معیارهای پیشرفته و سفارشی ---
@@ -594,8 +593,8 @@ double OnTester()
    double performance_stability_factor = CalculatePerformanceStabilityFactor();
 
    // --- مرحله 4: فرمول نهایی امتیازدهی یکپارچه (Grand Unified Scoring Formula) ---
-   // بخش 1: امتیاز پایه (سود و تعداد معاملات با تعدیل لگاریتمی)
-   double base_score = MathLog(1.0 + MathMax(0, net_profit)) * MathLog(1.0 + total_trades);
+   // بخش 1: امتیاز پایه (سود و تعداد معاملات با تعدیل ملایم‌تر برای رشد سریع‌تر) [اصلاح‌شده: از MathSqrt به جای MathLog برای اعداد بزرگ‌تر]
+   double base_score = MathSqrt(1.0 + MathMax(0, net_profit)) * MathSqrt(1.0 + total_trades);
 
    // بخش 2: فاکتورهای اصلی عملکرد و ریسک
    double core_performance_factor = recovery_factor * MathMax(0.1, sortino_ratio) * profit_loss_ratio * MathMax(0.1, r_squared);
@@ -603,8 +602,8 @@ double OnTester()
    // بخش 3: فاکتورهای کیفیت، پایداری و واقع‌گرایی (با افزودن فاکتورهای جدید)
    double quality_stability_factor = MathMax(0.1, monthly_stability_score) * MathMax(0.1, trade_quality_factor) * MathMax(0.1, win_rate_factor) * MathMax(0.1, trade_duration_factor) * MathMax(0.1, performance_stability_factor);
    
-   // محاسبه امتیاز نهایی و مقیاس‌بندی
-   double final_score = base_score * core_performance_factor * quality_stability_factor * MathMax(0.1, drawdown_penalty) * 1000.0;
+   // محاسبه امتیاز نهایی و مقیاس‌بندی [اصلاح‌شده: ضریب 10000 برای گسترش بازه و اعداد بزرگ‌تر]
+   double final_score = base_score * core_performance_factor * quality_stability_factor * MathMax(0.1, drawdown_penalty) * 10000.0;
    final_score = MathRound(final_score); // تبدیل به عدد صحیح
 
    // --- مرحله 5: چاپ نتیجه برای دیباگ و تحلیل ---
