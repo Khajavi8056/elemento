@@ -1,4 +1,4 @@
-
+```cpp
 //+------------------------------------------------------------------+
 //|                                                     Settings.mqh |
 //|                       Copyright 2025, Hipoalgorithm Team         |
@@ -75,6 +75,20 @@ enum ENUM_CONFIRMATION_STRATEGY
    CONFIRMATION_PRICE_INVALIDATION // حالت جدید: ابطال بر اساس بازگشت قیمت بدون محدودیت زمانی (انعطاف‌پذیرتر)
 };
 
+// Enum جدید برای انتخاب روش کلی محاسبه مرزهای رنج
+enum ENUM_BOUNDARY_DETECTION_MODE
+{
+   BOUNDARY_SIMPLE_EXTREMES,  // روش ساده: بالاترین High و پایین‌ترین Low (منطق فعلی)
+   BOUNDARY_STRUCTURAL_MEAN   // روش پیشرفته: تحلیل ساختاری
+};
+
+// Enum جدید برای انتخاب روش اعتبارسنجی کیفیت رنج
+enum ENUM_RANGE_QUALITY_FILTER
+{
+   QUALITY_MIN_MAX_POINTS,    // روش ساده: چک کردن حداقل و حداکثر ارتفاع (منطق فعلی)
+   QUALITY_MA_FILTER          // روش پیشرفته: فیلتر با کراس مووینگ اوریج‌ها
+};
+
 // گروه ورودی برای تنظیمات عمومی (پارامترهای پایه‌ای که بر تمام رنج‌ها تأثیر می‌گذارند)
 // این گروه شامل تنظیمات ریسک، دیباگ و استراتژی‌های عمومی است
 input group "تنظیمات عمومی"  // عنوان گروه در تنظیمات MT5
@@ -87,6 +101,21 @@ input ENUM_INVALIDATION_MODE Inp_Invalidation_Mode = INVALIDATION_RANGE_REENTRY;
 input ENUM_CONFIRMATION_STRATEGY Inp_Confirmation_Strategy = CONFIRMATION_PRICE_INVALIDATION; // استراتژی تایید: تایمر کندلی (قدیمی، محدود) یا ابطال قیمت (جدید، انعطاف‌پذیر)
 input int Inp_Confirmation_Timeout = 3; // مهلت تأیید قیمت و فیلتر (تعداد کندل) - فقط اگر CONFIRMATION_TIMEOUT انتخاب شود (1-10 توصیه‌شده)
 input bool Inp_PriceConfirmation_Enabled = true; // فعال کردن تأیید قیمت پس از کندل شکننده (اگر خاموش باشد، مستقیم به فیلتر روند می‌رود یا ورود، برای سرعت بیشتر)
+input int Inp_MinRangePoints = 200; // حداقل ارتفاع رنج به پوینت (برای فیلتر رنج‌های کوچک و بی‌کیفیت، بر اساس نماد تنظیم شود)
+input int Inp_MaxRangePoints = 1500; // حداکثر ارتفاع رنج به پوینت (برای فیلتر رنج‌های بزرگ و پرریسک، بر اساس نوسان تنظیم شود)
+input int Inp_Placement_ATR_Period = 122; // دوره ATR برای ثبت سفارش (برای محاسبه افست پویا، 14-200)
+input double Inp_Placement_ATR_Multiplier = 2.3; // ضریب ATR برای ثبت سفارش (برای تنظیم حساسیت افست، 1.0-3.0)
+input double Inp_Placement_Percent_Value = 0.5; // ورودی جدید و جداگانه برای حالت درصد
+input int Inp_SL_ATR_Period = 62; // دوره ATR برای بافر استاپ لاس (14-100)
+input double Inp_SL_ATR_Multiplier = 1.3; // ضریب ATR برای بافر استاپ لاس (0.5-2.0)
+input int Inp_Trailing_ATR_Period = 43; // دوره ATR برای تریلینگ (14-100)
+input double Inp_Trailing_ATR_Multiplier = 1.4; // ضریب ATR برای تریلینگ (1.0-2.0)
+input double Inp_RR_Ratio = 1.5; // نسبت R:R برای خروج پله‌ای (سود به ریسک برای خروج پله‌ای، 1.0-3.0)
+input double Inp_PartialClosePercent = 60.0; // درصد بستن پله‌ای (هنگام رسیدن به RR، 30-70%)
+input int Inp_Pullback_StopBuffer_Points = 5; // تبدیل مقدار هاردکد 5 * _Point به ورودی
+input int Inp_BE_Buffer_Points = 5; // تبدیل INP_breakEvenBuffer به ورودی عمومی
+input int Inp_Trailing_MinChange_Points = 5; // تبدیل INP_minichange به ورودی عمومی
+input ENUM_BOUNDARY_DETECTION_MODE Inp_BoundaryDetectionMode = BOUNDARY_STRUCTURAL_MEAN; // متد محاسبه مرزهای رنج
 
 // گروه ورودی برای فیلتر روند ایچیموکو (برای اطمینان از معامله در جهت روند یا خنثی و جلوگیری از معاملات خلاف روند)
 // این گروه پارامترهای ایچیموکو را برای فیلتر دینامیک تنظیم می‌کند
@@ -118,22 +147,13 @@ input int InpRange1_Start_Hour = 22; // ساعت شروع رنج 1 (0-23 برا�
 input int InpRange1_Start_Minute = 0; // دقیقه شروع رنج 1 (0-59 برای دقت زمانی، 0 برای شروع ساعتی)
 input int InpRange1_End_Hour = 9; // ساعت پایان رنج 1 (0-23، اگر کمتر از شروع باشد، رنج شبانه فرض می‌شود)
 input int InpRange1_End_Minute = 30; // دقیقه پایان رنج 1 (0-59، برای پایان دقیق)
-input int InpRange1_MinRangePoints = 200; // حداقل ارتفاع رنج 1 به پوینت (برای فیلتر رنج‌های کوچک و بی‌کیفیت، بر اساس نماد تنظیم شود)
-input int InpRange1_MaxRangePoints = 1500; // حداکثر ارتفاع رنج 1 به پوینت (برای فیلتر رنج‌های بزرگ و پرریسک، بر اساس نوسان تنظیم شود)
 input ENUM_PLACEMENT_MODE InpRange1_Placement_Mode = PLACEMENT_ATR; // حالت ثبت سفارش رنج 1 (افست شکست، ATR برای پویایی)
-input int InpRange1_ATR_Period = 122; // دوره ATR برای ثبت سفارش رنج 1 (برای محاسبه افست پویا، 14-200)
-input double InpRange1_ATR_Multiplier = 2.3; // ضریب ATR برای ثبت سفارش رنج 1 (برای تنظیم حساسیت افست، 1.0-3.0)
 input ENUM_SL_STRATEGY InpRange1_SL_Strategy = SL_BREAKOUT_LEVEL; // استراتژی جایگذاری استاپ لاس رنج 1 (مقابل یا سطح شکست، BREAKOUT برای تهاجمی)
 input ENUM_SL_CALC_MODE InpRange1_SL_Calc_Mode = SL_CALC_ATR; // حالت محاسبه بافر استاپ لاس رنج 1 (ATR برای تطبیق)
-input int InpRange1_SL_ATR_Period = 62; // دوره ATR برای بافر استاپ لاس رنج 1 (14-100)
-input double InpRange1_SL_ATR_Multiplier = 1.3; // ضریب ATR برای بافر استاپ لاس رنج 1 (0.5-2.0)
 input ENUM_TRAILING_MODE InpRange1_Trailing_Mode = TRAILING_ATR; // حالت تریلینگ استاپ رنج 1 (ATR برای پویایی)
-input int InpRange1_Trailing_ATR_Period = 43; // دوره ATR برای تریلینگ رنج 1 (14-100)
-input double InpRange1_Trailing_ATR_Multiplier = 1.4; // ضریب ATR برای تریلینگ رنج 1 (1.0-2.0)
-input double InpRange1_RR_Ratio = 1.5; // نسبت R:R برای خروج پله‌ای رنج 1 (سود به ریسک برای خروج پله‌ای، 1.0-3.0)
-input double InpRange1_PartialClosePercent = 60.0; // درصد بستن پله‌ای رنج 1 (هنگام رسیدن به RR، 30-70%)
 input int InpRange1_Cleanup_Hours = 5; // ساعت‌های پاکسازی رنج 1 (0-24، زمان انقضای رنج پس از پایان، 1-12 مناسب)
 input color InpRange1_Color = clrBlue; // رنگ مستطیل رنج 1 (برای نمایش گرافیکی روی چارت، آبی برای تمایز)
+input ENUM_RANGE_QUALITY_FILTER InpRange1_QualityFilter = QUALITY_MA_FILTER; // فیلتر کیفیت رنج
 
 // گروه ورودی برای تنظیمات رنج 2 (دومین رنج، معمولاً برای سشن اروپا)
 // مشابه رنج 1، اما با پارامترهای بهینه‌شده برای سشن اروپا
@@ -145,22 +165,13 @@ input int InpRange2_Start_Hour = 5; // ساعت شروع رنج 2 (0-23)
 input int InpRange2_Start_Minute = 0; // دقیقه شروع رنج 2 (0-59)
 input int InpRange2_End_Hour = 13; // ساعت پایان رنج 2 (0-23)
 input int InpRange2_End_Minute = 0; // دقیقه پایان رنج 2 (0-59)
-input int InpRange2_MinRangePoints = 200; // حداقل ارتفاع رنج 2 به پوینت
-input int InpRange2_MaxRangePoints = 3500; // حداکثر ارتفاع رنج 2 به پوینت
 input ENUM_PLACEMENT_MODE InpRange2_Placement_Mode = PLACEMENT_ATR; // حالت ثبت سفارش رنج 2
-input int InpRange2_ATR_Period = 27; // دوره ATR برای ثبت سفارش رنج 2
-input double InpRange2_ATR_Multiplier = 2.8; // ضریب ATR برای ثبت سفارش رنج 2
 input ENUM_SL_STRATEGY InpRange2_SL_Strategy = SL_OPPOSITE_SIDE; // استراتژی جایگذاری استاپ لاس رنج 2
 input ENUM_SL_CALC_MODE InpRange2_SL_Calc_Mode = SL_CALC_ATR; // حالت محاسبه بافر استاپ لاس رنج 2
-input int InpRange2_SL_ATR_Period = 86; // دوره ATR برای بافر استاپ لاس رنج 2
-input double InpRange2_SL_ATR_Multiplier = 1.56; // ضریب ATR برای بافر استاپ لاس رنج 2
 input ENUM_TRAILING_MODE InpRange2_Trailing_Mode = TRAILING_ATR; // حالت تریلینگ استاپ رنج 2
-input int InpRange2_Trailing_ATR_Period = 101; // دوره ATR برای تریلینگ رنج 2
-input double InpRange2_Trailing_ATR_Multiplier = 1.58; // ضریب ATR برای تریلینگ رنج 2
-input double InpRange2_RR_Ratio = 2.8; // نسبت R:R برای خروج پله‌ای رنج 2
-input double InpRange2_PartialClosePercent = 26; // درصد بستن پله‌ای رنج 2
 input int InpRange2_Cleanup_Hours = 4; // ساعت‌های پاکسازی رنج 2 (0-24)
 input color InpRange2_Color = clrRed; // رنگ مستطیل رنج 2
+input ENUM_RANGE_QUALITY_FILTER InpRange2_QualityFilter = QUALITY_MA_FILTER; // فیلتر کیفیت رنج
 
 // گروه ورودی برای تنظیمات رنج 3 (سومین رنج، معمولاً برای سشن آمریکا)
 // پارامترهای بهینه‌شده برای سشن آمریکا با رنج کوچک‌تر
@@ -172,22 +183,13 @@ input int InpRange3_Start_Hour = 15; // ساعت شروع رنج 3 (0-23)
 input int InpRange3_Start_Minute = 0; // دقیقه شروع رنج 3 (0-59)
 input int InpRange3_End_Hour = 18; // ساعت پایان رنج 3 (0-23)
 input int InpRange3_End_Minute = 0; // دقیقه پایان رنج 3 (0-59)
-input int InpRange3_MinRangePoints = 100; // حداقل ارتفاع رنج 3 به پوینت
-input int InpRange3_MaxRangePoints = 2110; // حداکثر ارتفاع رنج 3 به پوینت
 input ENUM_PLACEMENT_MODE InpRange3_Placement_Mode = PLACEMENT_ATR; // حالت ثبت سفارش رنج 3
-input int InpRange3_ATR_Period = 14; // دوره ATR برای ثبت سفارش رنج 3
-input double InpRange3_ATR_Multiplier = 1.2; // ضریب ATR برای ثبت سفارش رنج 3
 input ENUM_SL_STRATEGY InpRange3_SL_Strategy = SL_OPPOSITE_SIDE; // استراتژی جایگذاری استاپ لاس رنج 3
 input ENUM_SL_CALC_MODE InpRange3_SL_Calc_Mode = SL_CALC_ATR; // حالت محاسبه بافر استاپ لاس رنج 3
-input int InpRange3_SL_ATR_Period = 14; // دوره ATR برای بافر استاپ لاس رنج 3
-input double InpRange3_SL_ATR_Multiplier = 1.5; // ضریب ATR برای بافر استاپ لاس رنج 3
 input ENUM_TRAILING_MODE InpRange3_Trailing_Mode = TRAILING_ATR; // حالت تریلینگ استاپ رنج 3
-input int InpRange3_Trailing_ATR_Period = 14; // دوره ATR برای تریلینگ رنج 3
-input double InpRange3_Trailing_ATR_Multiplier = 1.0; // ضریب ATR برای تریلینگ رنج 3
-input double InpRange3_RR_Ratio = 1.5; // نسبت R:R برای خروج پله‌ای رنج 3
-input double InpRange3_PartialClosePercent = 50.0; // درصد بستن پله‌ای رنج 3
 input int InpRange3_Cleanup_Hours = 5; // ساعت‌های پاکسازی رنج 3 (0-24)
 input color InpRange3_Color = clrGreen; // رنگ مستطیل رنج 3
+input ENUM_RANGE_QUALITY_FILTER InpRange3_QualityFilter = QUALITY_MA_FILTER; // فیلتر کیفیت رنج
 
 // گروه ورودی برای تنظیمات رنج 4 (چهارمین رنج، برای سفارشی‌سازی اضافی یا تست)
 // رنج پیش‌فرض خاموش برای جلوگیری از تداخل
@@ -199,22 +201,13 @@ input int InpRange4_Start_Hour = 0; // ساعت شروع رنج 4 (0-23)
 input int InpRange4_Start_Minute = 0; // دقیقه شروع رنج 4 (0-59)
 input int InpRange4_End_Hour = 0; // ساعت پایان رنج 4 (0-23)
 input int InpRange4_End_Minute = 0; // دقیقه پایان رنج 4 (0-59)
-input int InpRange4_MinRangePoints = 50; // حداقل ارتفاع رنج 4 به پوینت
-input int InpRange4_MaxRangePoints = 500; // حداکثر ارتفاع رنج 4 به پوینت
 input ENUM_PLACEMENT_MODE InpRange4_Placement_Mode = PLACEMENT_ATR; // حالت ثبت سفارش رنج 4
-input int InpRange4_ATR_Period = 14; // دوره ATR برای ثبت سفارش رنج 4
-input double InpRange4_ATR_Multiplier = 1.2; // ضریب ATR برای ثبت سفارش رنج 4
 input ENUM_SL_STRATEGY InpRange4_SL_Strategy = SL_OPPOSITE_SIDE; // استراتژی جایگذاری استاپ لاس رنج 4
 input ENUM_SL_CALC_MODE InpRange4_SL_Calc_Mode = SL_CALC_ATR; // حالت محاسبه بافر استاپ لاس رنج 4
-input int InpRange4_SL_ATR_Period = 14; // دوره ATR برای بافر استاپ لاس رنج 4
-input double InpRange4_SL_ATR_Multiplier = 1.5; // ضریب ATR برای بافر استاپ لاس رنج 4
 input ENUM_TRAILING_MODE InpRange4_Trailing_Mode = TRAILING_ATR; // حالت تریلینگ استاپ رنج 4
-input int InpRange4_Trailing_ATR_Period = 14; // دوره ATR برای تریلینگ رنج 4
-input double InpRange4_Trailing_ATR_Multiplier = 1.0; // ضریب ATR برای تریلینگ رنج 4
-input double InpRange4_RR_Ratio = 1.5; // نسبت R:R برای خروج پله‌ای رنج 4
-input double InpRange4_PartialClosePercent = 50.0; // درصد بستن پله‌ای رنج 4
 input int InpRange4_Cleanup_Hours = 5; // ساعت‌های پاکسازی رنج 4 (0-24)
 input color InpRange4_Color = clrYellow; // رنگ مستطیل رنج 4
+input ENUM_RANGE_QUALITY_FILTER InpRange4_QualityFilter = QUALITY_MA_FILTER; // فیلتر کیفیت رنج
 
 // (جدید در 2.30) گروه ورودی برای ورود تطبیقی: برای تحلیل قدرت شکست و انتخاب استراتژی ورود
 input group "تنظیمات ورود تطبیقی (نسخه 2.3)"
@@ -223,7 +216,8 @@ enum ENUM_ADAPTIVE_MODE
 {
    MODE_CANDLE_ONLY,         // تحلیل فقط بر اساس قدرت کندل شکست
    MODE_CANDLE_CONFIRM,      // تحلیل بر اساس کندل شکست + تاییدیه فوری
-   MODE_CANDLE_CONFIRM_ICHI  // تحلیل بر اساس کندل شکست + تاییدیه فوری + ایچیموکو همزمان
+   MODE_CANDLE_CONFIRM_ICHI,  // تحلیل بر اساس کندل شکست + تاییدیه فوری + ایچیموکو همزمان
+   MODE_FIRST_ATTEMPT        // جدید: تحلیل بر اساس اولین تلاش موفق برای شکست
 };
 input ENUM_ADAPTIVE_MODE Inp_AdaptiveMode = MODE_CANDLE_CONFIRM_ICHI; // حالت تحلیل قدرت شکست
 enum ENUM_ICHIMOKU_MODE
@@ -235,13 +229,17 @@ input ENUM_ICHIMOKU_MODE Inp_IchimokuMode = MODE_CHIKOU_SPAN; // انتخاب ن
 input double Inp_MinCandleBodyRatio = 0.3; // حداقل نسبت بدنه به کل کندل برای "ضعیف نبودن" (0.1-0.9)
 input double Inp_ExplosiveCandleBodyRatio = 0.7; // حداقل نسبت بدنه به کل کندل برای "انفجاری بودن" (0.1-0.9)
 
+// گروه ورودی جدید برای تنظیمات تحلیل ساختاری
+input group "تنظیمات تحلیل ساختاری"
+input int Inp_MA_Fast_Period = 20; // دوره مووینگ اوریج سریع برای فیلتر رنج
+input int Inp_MA_Slow_Period = 50; // دوره مووینگ اوریج کند برای فیلتر رنج
+input ENUM_MA_METHOD Inp_MA_Method = MODE_EMA; // متد مووینگ اوریج
+input ENUM_APPLIED_PRICE Inp_MA_Applied_Price = PRICE_CLOSE; // قیمت اعمالی مووینگ اوریج
+
 #endif  // پایان چک include
+```
 
-
-
-
-
-
+```cpp
 //+------------------------------------------------------------------+
 //|                                                       Elemento.mq5 |
 //|                       Copyright 2025, Hipoalgorithm Team         |
@@ -266,7 +264,7 @@ input double Inp_ExplosiveCandleBodyRatio = 0.7; // حداقل نسبت بدنه
 
 #property copyright "Copyright 2025, Hipoalgorithm Team"  // کپی‌رایت فایل
 #property link      "https://hipoalgorithm.com"  // لینک وب‌سایت تیم
-#property version   "2.30"  // ورژن نهایی با تغییرات مدیریت معامله و لاگ هوشمند و پشتیبانی از پولبک
+#property version   "2.40"  // ورژن نهایی با تغییرات مدیریت معامله و لاگ هوشمند و پشتیبانی از پولبک
 #property strict  // حالت厳格 برای جلوگیری از خطاهای کامپایل
 
 #include "Settings.mqh"  // فایل تنظیمات برای دسترسی به ورودی‌ها و enums
@@ -322,7 +320,7 @@ int OnInit()  // تابع مقداردهی اولیه
    
    // چاپ پیام دیباگ برای شروع مقداردهی با استفاده از Print (چون فقط یکبار اجرا می‌شود)
    // این پیام فقط در حالت دیباگ چاپ می‌شود
-   if(InpDebugMode) Print("شروع مقداردهی اکسپرت Elemento نسخه 2.30...");  // چاپ شروع مقداردهی
+   if(InpDebugMode) Print("شروع مقداردهی اکسپرت Elemento نسخه 2.40...");  // چاپ شروع مقداردهی
 
    // کش اطلاعات سیمبل (نماد) برای استفاده در محاسبه ریسک، حجم و فاصله‌ها
    // SymbolInfoDouble اطلاعات معاملاتی نماد را برمی‌گرداند
@@ -390,9 +388,9 @@ int OnInit()  // تابع مقداردهی اولیه
 
       // استخراج تایم‌فریم اجرا از ورودی مربوطه
       ENUM_TIMEFRAMES timeframe = i == 0 ? InpRange1_Execution_Timeframe : i == 1 ? InpRange2_Execution_Timeframe : i == 2 ? InpRange3_Execution_Timeframe : InpRange4_Execution_Timeframe;  // تایم‌فریم اجرا رنج
-      // استخراج دوره ATR از ورودی مربوطه
-      int atrPeriod = i == 0 ? InpRange1_ATR_Period : i == 1 ? InpRange2_ATR_Period : i == 2 ? InpRange3_ATR_Period : InpRange4_ATR_Period;  // دوره ATR برای افست
-      // ایجاد هندل ATR برای محاسبات پویا با استفاده از iATR
+      // استخراج دوره ATR از ورودی عمومی
+      int atrPeriod = Inp_Placement_ATR_Period;  // دوره ATR برای افست از عمومی
+      // ایجاد هندل ATR برای محاسبات پویا با استفاده از iATR (با sub_window=0 برای مخفی‌سازی)
       g_atrHandles[i] = iATR(_Symbol, timeframe, atrPeriod);  // ایجاد هندل ATR برای محاسبات پویا
       if(g_atrHandles[i] == INVALID_HANDLE)  // چک هندل معتبر
       {
@@ -404,30 +402,19 @@ int OnInit()  // تابع مقداردهی اولیه
       ENUM_SL_STRATEGY slStrategy = i == 0 ? InpRange1_SL_Strategy : i == 1 ? InpRange2_SL_Strategy : i == 2 ? InpRange3_SL_Strategy : InpRange4_SL_Strategy;  // استراتژی SL
       // استخراج حالت محاسبه بافر SL از ورودی مربوطه
       ENUM_SL_CALC_MODE slCalcMode = i == 0 ? InpRange1_SL_Calc_Mode : i == 1 ? InpRange2_SL_Calc_Mode : i == 2 ? InpRange3_SL_Calc_Mode : InpRange4_SL_Calc_Mode;  // حالت محاسبه بافر SL
-      // استخراج دوره ATR برای SL از ورودی مربوطه
-      int slAtrPeriod = i == 0 ? InpRange1_SL_ATR_Period : i == 1 ? InpRange2_SL_ATR_Period : i == 2 ? InpRange3_SL_ATR_Period : InpRange4_SL_ATR_Period;  // دوره ATR برای SL
-      // استخراج ضریب ATR برای SL از ورودی مربوطه
-      double slAtrMultiplier = i == 0 ? InpRange1_SL_ATR_Multiplier : i == 1 ? InpRange2_SL_ATR_Multiplier : i == 2 ? InpRange3_SL_ATR_Multiplier : InpRange4_SL_ATR_Multiplier;  // ضریب ATR برای SL
 
       // فراخوانی Init برای هر رنج با پارامترهای مربوطه (مقداردهی کامل رنج، شامل SL strategy جدید)
       // استفاده از شرط سه‌تایی برای استخراج پارامترهای دیگر
       if(!g_ranges[i].Init(  // فراخوانی Init رنج
          i + 1, magic, timeframe, startHour, startMinute, endHour, endMinute,  // پارامترهای پایه
-         i == 0 ? InpRange1_MinRangePoints : i == 1 ? InpRange2_MinRangePoints : i == 2 ? InpRange3_MinRangePoints : InpRange4_MinRangePoints,  // حداقل ارتفاع
-         i == 0 ? InpRange1_MaxRangePoints : i == 1 ? InpRange2_MaxRangePoints : i == 2 ? InpRange3_MaxRangePoints : InpRange4_MaxRangePoints,  // حداکثر ارتفاع
          i == 0 ? InpRange1_Placement_Mode : i == 1 ? InpRange2_Placement_Mode : i == 2 ? InpRange3_Placement_Mode : InpRange4_Placement_Mode,  // حالت افست
-         atrPeriod,  // دوره ATR
-         i == 0 ? InpRange1_ATR_Multiplier : i == 1 ? InpRange2_ATR_Multiplier : i == 2 ? InpRange3_ATR_Multiplier : InpRange4_ATR_Multiplier,  // ضریب ATR
-         slStrategy, slCalcMode, slAtrPeriod, slAtrMultiplier,  // پارامترهای SL
+         slStrategy, slCalcMode,  // پارامترهای SL
          i == 0 ? InpRange1_Trailing_Mode : i == 1 ? InpRange2_Trailing_Mode : i == 2 ? InpRange3_Trailing_Mode : InpRange4_Trailing_Mode,  // حالت تریلینگ
-         i == 0 ? InpRange1_Trailing_ATR_Period : i == 1 ? InpRange2_Trailing_ATR_Period : i == 2 ? InpRange3_Trailing_ATR_Period : InpRange4_Trailing_ATR_Period,  // دوره تریلینگ
-         i == 0 ? InpRange1_Trailing_ATR_Multiplier : i == 1 ? InpRange2_Trailing_ATR_Multiplier : i == 2 ? InpRange3_Trailing_ATR_Multiplier : InpRange4_Trailing_ATR_Multiplier,  // ضریب تریلینگ
-         i == 0 ? InpRange1_RR_Ratio : i == 1 ? InpRange2_RR_Ratio : i == 2 ? InpRange3_RR_Ratio : InpRange4_RR_Ratio,  // نسبت RR
-         i == 0 ? InpRange1_PartialClosePercent : i == 1 ? InpRange2_PartialClosePercent : i == 2 ? InpRange3_PartialClosePercent : InpRange4_PartialClosePercent,  // درصد پله‌ای
          i == 0 ? InpRange1_Cleanup_Hours : i == 1 ? InpRange2_Cleanup_Hours : i == 2 ? InpRange3_Cleanup_Hours : InpRange4_Cleanup_Hours,  // ساعت پاکسازی
          i == 0 ? InpRange1_Color : i == 1 ? InpRange2_Color : i == 2 ? InpRange3_Color : InpRange4_Color,  // رنگ
          i == 0 ? InpRange1_TrendFilter_Timeframe : i == 1 ? InpRange2_TrendFilter_Timeframe : i == 2 ? InpRange3_TrendFilter_Timeframe : InpRange4_TrendFilter_Timeframe,  // تایم‌فریم فیلتر
-         g_atrHandles[i]  // هندل ATR
+         g_atrHandles[i],  // هندل ATR
+         i == 0 ? InpRange1_QualityFilter : i == 1 ? InpRange2_QualityFilter : i == 2 ? InpRange3_QualityFilter : InpRange4_QualityFilter  // فیلتر کیفیت جدید
       ))  // پایان فراخوانی Init
       {
          Print("خطا در مقداردهی رنج " + IntegerToString(i + 1) + ": " + IntegerToString(GetLastError()));  // چاپ خطا برای شکست Init
@@ -457,11 +444,11 @@ for(int i = 0; i < 4; i++)
             CLogger::Log("معامله باز برای رنج " + IntegerToString(i + 1) + " پیدا شد. در حال ثبت در مدیر معاملات...", i + 1);
 
             // ۱. خوندن پارامترهای لازم برای مدیریت معامله از تنظیمات ورودی
-            double rec_rr_ratio = i == 0 ? InpRange1_RR_Ratio : i == 1 ? InpRange2_RR_Ratio : i == 2 ? InpRange3_RR_Ratio : InpRange4_RR_Ratio;
-            double rec_partial_percent = i == 0 ? InpRange1_PartialClosePercent : i == 1 ? InpRange2_PartialClosePercent : i == 2 ? InpRange3_PartialClosePercent : InpRange4_PartialClosePercent;
+            double rec_rr_ratio = Inp_RR_Ratio;
+            double rec_partial_percent = Inp_PartialClosePercent;
             ENUM_TRAILING_MODE rec_trailing_mode = i == 0 ? InpRange1_Trailing_Mode : i == 1 ? InpRange2_Trailing_Mode : i == 2 ? InpRange3_Trailing_Mode : InpRange4_Trailing_Mode;
-            int rec_trailing_atr_period = i == 0 ? InpRange1_Trailing_ATR_Period : i == 1 ? InpRange2_Trailing_ATR_Period : i == 2 ? InpRange3_Trailing_ATR_Period : InpRange4_Trailing_ATR_Period;
-            double rec_trailing_atr_multiplier = i == 0 ? InpRange1_Trailing_ATR_Multiplier : i == 1 ? InpRange2_Trailing_ATR_Multiplier : i == 2 ? InpRange3_Trailing_ATR_Multiplier : InpRange4_Trailing_ATR_Multiplier;
+            int rec_trailing_atr_period = Inp_Trailing_ATR_Period;
+            double rec_trailing_atr_multiplier = Inp_Trailing_ATR_Multiplier;
             ENUM_TIMEFRAMES rec_exec_tf = i == 0 ? InpRange1_Execution_Timeframe : i == 1 ? InpRange2_Execution_Timeframe : i == 2 ? InpRange3_Execution_Timeframe : InpRange4_Execution_Timeframe;
             ENUM_TIMEFRAMES rec_trend_tf = i == 0 ? InpRange1_TrendFilter_Timeframe : i == 1 ? InpRange2_TrendFilter_Timeframe : i == 2 ? InpRange3_TrendFilter_Timeframe : InpRange4_TrendFilter_Timeframe;
             
@@ -584,7 +571,7 @@ for(int i = 0; i < 4; i++)
    EventSetTimer(60);  // تنظیم تایمر ۶۰ ثانیه
 
    // چاپ موفقیت مقداردهی با Print (چون نهایی است)
-   Print("مقداردهی اکسپرت Elemento نسخه 2.30 با موفقیت انجام شد.");  // چاپ موفقیت مقداردهی
+   Print("مقداردهی اکسپرت Elemento نسخه 2.40 با موفقیت انجام شد.");  // چاپ موفقیت مقداردهی
    return(INIT_SUCCEEDED);  // بازگشت موفقیت
 }
 
@@ -593,7 +580,7 @@ for(int i = 0; i < 4; i++)
 void OnDeinit(const int reason)  // تابع دفع با دلیل
 {
    // چاپ دیباگ برای دلیل دفع با Print (چون فقط یکبار)
-   if(InpDebugMode) Print("دفع مقداردهی اکسپرت Elemento نسخه 2.30. دلیل: " + IntegerToString(reason));  // چاپ دیباگ برای دلیل دفع
+   if(InpDebugMode) Print("دفع مقداردهی اکسپرت Elemento نسخه 2.40. دلیل: " + IntegerToString(reason));  // چاپ دیباگ برای دلیل دفع
 
    // پاکسازی سخت تمام رنج‌ها برای بستن معاملات باقی‌مانده و ریست (در صورت کرش یا خروج)
    // حلقه برای پاکسازی سخت هر رنج
@@ -811,15 +798,9 @@ bool IsMarketClosed()  // تابع چک بسته بودن بازار
    CLogger::Log("بازار تعطیل است (خارج از جلسه).");  // چاپ دیباگ
    return true;  // بازگشت درست
 }
+```
 
-
-
-
-
-
-
-
-
+```cpp
 //+------------------------------------------------------------------+
 //|                                                          Utils.mqh |
 //|                       Copyright 2025, Hipoalgorithm Team         |
@@ -851,13 +832,9 @@ double NormalizePrice(double price)  // تابع نرمال‌سازی قیمت
 }
 
 #endif  // پایان چک include
+```
 
-
-
-
-
-
-
+```cpp
 //+------------------------------------------------------------------+
 //|                                                         CRange.mqh |
 //|                       Copyright 2025, Hipoalgorithm Team         |
@@ -891,6 +868,7 @@ double NormalizePrice(double price)  // تابع نرمال‌سازی قیمت
 #include "Utils.mqh"  // کلاس کمکی برای نرمال‌سازی قیمت‌ها
 #include "Logger.mqh"  // کتابخانه لاگ هوشمند برای چاپ پیام‌های کنترل‌شده
 #include "BreakoutAnalyzer.mqh"  // کتابخانه جدید برای تحلیل قدرت شکست
+#include "StructureUtils.mqh"  // فایل جدید برای تحلیل ساختاری
 
 // تعریف enum برای حالت‌های رنج (ماشین حالت برای کنترل جریان هر رنج جداگانه)
 // این enum جریان استراتژی را از انتظار تا مدیریت معامله کنترل می‌کند
@@ -918,20 +896,10 @@ private:
    int m_startMinute;  // دقیقه شروع رنج (0-59)
    int m_endHour;  // ساعت پایان رنج (0-23)
    int m_endMinute;  // دقیقه پایان رنج (0-59)
-   int m_minRangePoints;  // حداقل ارتفاع مجاز رنج به پوینت (برای فیلتر رنج‌های کوچک)
-   int m_maxRangePoints;  // حداکثر ارتفاع مجاز رنج به پوینت (برای فیلتر رنج‌های بزرگ)
    ENUM_PLACEMENT_MODE m_placementMode;  // حالت افست شکست (ATR یا درصد، برای محاسبه سطوح)
-   int m_atrPeriod;  // دوره ATR برای افست (برای iATR)
-   double m_atrMultiplier;  // ضریب ATR برای افست (برای حساسیت)
    ENUM_SL_STRATEGY m_slStrategy;  // استراتژی جایگذاری SL (مقابل یا سطح شکست، برای base point)
    ENUM_SL_CALC_MODE m_slCalcMode;  // حالت محاسبه بافر SL (ATR یا درصد)
-   int m_slAtrPeriod;  // دوره ATR برای بافر SL
-   double m_slAtrMultiplier;  // ضریب ATR برای بافر SL
    ENUM_TRAILING_MODE m_trailingMode;  // حالت تریلینگ (ATR یا Senkou B)
-   int m_trailingAtrPeriod;  // دوره ATR برای تریلینگ
-   double m_trailingAtrMultiplier;  // ضریب ATR برای تریلینگ
-   double m_rrRatio;  // نسبت R:R برای خروج پله‌ای (سود/ریسک)
-   double m_partialClosePercent;  // درصد خروج پله‌ای (0-100)
    int m_cleanupHours;  // ساعت‌های پاکسازی پس از پایان رنج (0-24)
    color m_color;  // رنگ مستطیل رنج (برای OBJ_RECTANGLE)
    ENUM_TIMEFRAMES m_trendFilterTimeframe;  // تایم‌فریم فیلتر روند (برای GetTrendDirection)
@@ -967,6 +935,8 @@ private:
    bool m_isBuyAttempt;  // فلگ برای ذخیره جهت سیگنال فعلی (true برای خرید، false برای فروش، برای تشخیص قطعی در ProcessEntryAttempt)
    datetime m_breakerCandleTime;  // زمان کندل شکست (برای تحلیل قدرت)
    datetime m_confirmationCandleTime;  // زمان کندل تاییدیه (برای تحلیل قدرت)
+   bool m_isFirstAttempt;  // متغیر جدید برای MODE_FIRST_ATTEMPT
+   ENUM_RANGE_QUALITY_FILTER m_qualityFilter;  // فیلتر کیفیت رنج (از ورودی)
 
    // شناسایی و ولید رنج: محاسبه سقف/کف، چک ارتفاع و رسم مستطیل اگر معتبر باشد
    // این تابع رنج را بر اساس زمان محاسبه و ولید می‌کند
@@ -1016,24 +986,23 @@ private:
 public:
    // سازنده پیش‌فرض با مقادیر اولیه برای جلوگیری از garbage values
    CRange() : m_rangeIndex(0), m_magicNumber(0), m_timeframe(PERIOD_CURRENT), m_startHour(0), m_startMinute(0), m_endHour(0), m_endMinute(0),
-              m_minRangePoints(0), m_maxRangePoints(0), m_placementMode(PLACEMENT_ATR), m_atrPeriod(0), m_atrMultiplier(0.0),
-              m_slStrategy(SL_OPPOSITE_SIDE), m_slCalcMode(SL_CALC_ATR), m_slAtrPeriod(0), m_slAtrMultiplier(0.0),
-              m_trailingMode(TRAILING_ATR), m_trailingAtrPeriod(0), m_trailingAtrMultiplier(0.0), m_rrRatio(0.0), m_partialClosePercent(0.0),
+              m_placementMode(PLACEMENT_ATR), m_slStrategy(SL_OPPOSITE_SIDE), m_slCalcMode(SL_CALC_ATR), m_trailingMode(TRAILING_ATR),
               m_cleanupHours(0), m_color(clrNONE), m_trendFilterTimeframe(PERIOD_CURRENT), m_atrHandle(INVALID_HANDLE),
               m_slAtrHandle(INVALID_HANDLE), m_trailingAtrHandle(INVALID_HANDLE), m_currentState(RANGE_IDLE),
               m_rangeHigh(0), m_rangeLow(0), m_potentialBuyPrice(0), m_potentialSellPrice(0), m_breakerCandleLevel(0),
               m_activeTicket(0), m_pendingOrderTicket(0), m_cachedATR(0), m_cachedSlATR(0), m_cachedTrailingATR(0),
               m_waitCounter(0), m_cleanupTime(0), m_lastEndTime(0), m_lastInvalid(false), m_rangeEndTime(0), m_lastFilterBarTime(0),
               m_fixedOffsetValue(0.0), m_rangeObjectName(""), m_buyLineName(""), m_sellLineName(""), m_initialSlDistance(0.0), m_isCleanedForThisCycle(false),
-              m_buyAttemptDisabled(false), m_sellAttemptDisabled(false), m_isBuyAttempt(false), m_breakerCandleTime(0), m_confirmationCandleTime(0) {}  // سازنده پیش‌فرض با مقادیر اولیه (شامل متغیرهای جدید)
+              m_buyAttemptDisabled(false), m_sellAttemptDisabled(false), m_isBuyAttempt(false), m_breakerCandleTime(0), m_confirmationCandleTime(0),
+              m_isFirstAttempt(true), m_qualityFilter(QUALITY_MIN_MAX_POINTS) {}  // سازنده پیش‌فرض با مقادیر اولیه (شامل متغیرهای جدید)
 
    // مقداردهی رنج: تنظیم پارامترها، ایجاد هندل‌های ATR و نام‌گذاری اشیاء
    // این تابع تمام پارامترها را از ورودی‌ها می‌گیرد
    bool Init(int index, long magic, ENUM_TIMEFRAMES timeframe, int startHour, int startMinute, int endHour, int endMinute,
-             int minRangePoints, int maxRangePoints, ENUM_PLACEMENT_MODE placementMode, int atrPeriod, double atrMultiplier,
-             ENUM_SL_STRATEGY slStrategy, ENUM_SL_CALC_MODE slCalcMode, int slAtrPeriod, double slAtrMultiplier,
-             ENUM_TRAILING_MODE trailingMode, int trailingAtrPeriod, double trailingAtrMultiplier,
-             double rrRatio, double partialClosePercent, int cleanupHours, color col, ENUM_TIMEFRAMES trendTf, int sharedAtrHandle);  // مقداردهی رنج
+             ENUM_PLACEMENT_MODE placementMode,
+             ENUM_SL_STRATEGY slStrategy, ENUM_SL_CALC_MODE slCalcMode,
+             ENUM_TRAILING_MODE trailingMode,
+             int cleanupHours, color col, ENUM_TIMEFRAMES trendTf, int sharedAtrHandle, ENUM_RANGE_QUALITY_FILTER qualityFilter);  // مقداردهی رنج
    int GetTrailingAtrHandle() const { return m_trailingAtrHandle; }  // بازگشت هندل ATR تریلینگ
    // دفع رنج: آزادسازی هندل‌های ATR
    // این تابع منابع را آزاد می‌کند
@@ -1109,6 +1078,9 @@ public:
 
    // Getter برای جهت خرید/فروش (برای BreakoutAnalyzer)
    bool GetIsBuyAttempt() const { return m_isBuyAttempt; }
+
+   // Getter برای m_isFirstAttempt (برای MODE_FIRST_ATTEMPT)
+   bool GetIsFirstAttempt() const { return m_isFirstAttempt; }
 };
 
 // پیاده‌سازی توابع کلاس CRange (خارج از تعریف کلاس برای خوانایی)
@@ -1117,10 +1089,10 @@ public:
 // مقداردهی رنج: تنظیم پارامترها، ایجاد هندل‌های ATR و نام‌گذاری اشیاء
 // این تابع تمام فیلدهای private را مقداردهی می‌کند
 bool CRange::Init(int index, long magic, ENUM_TIMEFRAMES timeframe, int startHour, int startMinute, int endHour, int endMinute,
-                  int minRangePoints, int maxRangePoints, ENUM_PLACEMENT_MODE placementMode, int atrPeriod, double atrMultiplier,
-                  ENUM_SL_STRATEGY slStrategy, ENUM_SL_CALC_MODE slCalcMode, int slAtrPeriod, double slAtrMultiplier,
-                  ENUM_TRAILING_MODE trailingMode, int trailingAtrPeriod, double trailingAtrMultiplier,
-                  double rrRatio, double partialClosePercent, int cleanupHours, color col, ENUM_TIMEFRAMES trendTf, int sharedAtrHandle)  // پارامترهای ورودی
+                  ENUM_PLACEMENT_MODE placementMode,
+                  ENUM_SL_STRATEGY slStrategy, ENUM_SL_CALC_MODE slCalcMode,
+                  ENUM_TRAILING_MODE trailingMode,
+                  int cleanupHours, color col, ENUM_TIMEFRAMES trendTf, int sharedAtrHandle, ENUM_RANGE_QUALITY_FILTER qualityFilter)  // پارامترهای ورودی
 {
    // تنظیم ایندکس رنج برای لاگ و اشیاء
    m_rangeIndex = index;  // تنظیم ایندکس رنج
@@ -1134,40 +1106,28 @@ bool CRange::Init(int index, long magic, ENUM_TIMEFRAMES timeframe, int startHou
    // تنظیم زمان پایان
    m_endHour = endHour;  // تنظیم ساعت پایان
    m_endMinute = endMinute;  // تنظیم دقیقه پایان
-   // تنظیم محدودیت‌های ارتفاع
-   m_minRangePoints = minRangePoints;  // تنظیم حداقل ارتفاع
-   m_maxRangePoints = maxRangePoints;  // تنظیم حداکثر ارتفاع
    // تنظیم حالت افست
    m_placementMode = placementMode;  // تنظیم حالت افست
-   // تنظیم پارامترهای ATR افست
-   m_atrPeriod = atrPeriod;  // تنظیم دوره ATR افست
-   m_atrMultiplier = atrMultiplier;  // تنظیم ضریب ATR افست
    // تنظیم پارامترهای SL
    m_slStrategy = slStrategy;  // تنظیم استراتژی SL
    m_slCalcMode = slCalcMode;  // تنظیم حالت بافر SL
-   m_slAtrPeriod = slAtrPeriod;  // تنظیم دوره ATR SL
-   m_slAtrMultiplier = slAtrMultiplier;  // تنظیم ضریب ATR SL
    // تنظیم پارامترهای تریلینگ
    m_trailingMode = trailingMode;  // تنظیم حالت تریلینگ
-   m_trailingAtrPeriod = trailingAtrPeriod;  // تنظیم دوره ATR تریلینگ
-   m_trailingAtrMultiplier = trailingAtrMultiplier;  // تنظیم ضریب ATR تریلینگ
-   // تنظیم پارامترهای مدیریت معامله
-   m_rrRatio = rrRatio;  // تنظیم نسبت RR
-   m_partialClosePercent = partialClosePercent;  // تنظیم درصد پله‌ای
    m_cleanupHours = cleanupHours;  // تنظیم ساعت‌های پاکسازی
    m_color = col;  // تنظیم رنگ
    m_trendFilterTimeframe = trendTf;  // تنظیم تایم‌فریم فیلتر
    m_atrHandle = sharedAtrHandle;  // هندل ATR افست (مشترک)
+   m_qualityFilter = qualityFilter;  // تنظیم فیلتر کیفیت
 
    // ایجاد هندل‌های جداگانه برای SL و تریلینگ (برای دوره‌های متفاوت)
    // iATR هندل اندیکاتور را ایجاد می‌کند
-   m_slAtrHandle = iATR(_Symbol, timeframe, m_slAtrPeriod);  // هندل ATR برای SL
+   m_slAtrHandle = iATR(_Symbol, timeframe, Inp_SL_ATR_Period);  // هندل ATR برای SL
    if(m_slAtrHandle == INVALID_HANDLE)  // چک موفقیت ایجاد
    {
       CLogger::Log("خطا در ایجاد هندل ATR برای SL رنج " + IntegerToString(index), index);  // چاپ خطا
       return false;  // بازگشت شکست
    }
-   m_trailingAtrHandle = iATR(_Symbol, timeframe, m_trailingAtrPeriod);  // هندل ATR برای تریلینگ
+   m_trailingAtrHandle = iATR(_Symbol, timeframe, Inp_Trailing_ATR_Period);  // هندل ATR برای تریلینگ
    if(m_trailingAtrHandle == INVALID_HANDLE)  // چک موفقیت
    {
       CLogger::Log("خطا در ایجاد هندل ATR برای تریلینگ رنج " + IntegerToString(index), index);  // چاپ خطا
@@ -1189,6 +1149,7 @@ bool CRange::Init(int index, long magic, ENUM_TIMEFRAMES timeframe, int startHou
    m_isBuyAttempt = false;  // ریست جهت سیگنال
    m_breakerCandleTime = 0;  // ریست زمان بریک
    m_confirmationCandleTime = 0;  // ریست زمان تاییدیه
+   m_isFirstAttempt = true;  // ریست فلگ اولین تلاش
    // چاپ موفقیت با CLogger
    CLogger::Log("رنج " + IntegerToString(index) + " مقداردهی شد.", index);  // چاپ موفقیت
    return true;  // بازگشت موفقیت
@@ -1309,7 +1270,7 @@ void CRange::UpdateOnNewBar()  // تابع به‌روزرسانی
                   {
                      m_activeTicket = posTicket;  // ذخیره
                      double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);  // قیمت
-                     g_tradeManager.RegisterTrade(posTicket, m_magicNumber, m_rangeIndex, m_initialSlDistance, openPrice, m_rrRatio, m_partialClosePercent, m_trailingMode, m_trailingAtrPeriod, m_trailingAtrMultiplier, m_timeframe, m_trailingAtrHandle, m_trendFilterTimeframe);  // ثبت
+                     g_tradeManager.RegisterTrade(posTicket, m_magicNumber, m_rangeIndex, m_initialSlDistance, openPrice, Inp_RR_Ratio, Inp_PartialClosePercent, m_trailingMode, Inp_Trailing_ATR_Period, Inp_Trailing_ATR_Multiplier, m_timeframe, m_trailingAtrHandle, m_trendFilterTimeframe);  // ثبت
                      m_pendingOrderTicket = 0;  // ریست
                      m_currentState = RANGE_TRADE_ACTIVE;  // تغییر
                      orderActivated = true;  // فلگ
@@ -1383,23 +1344,74 @@ void CRange::IdentifyAndValidateRange()  // تابع شناسایی
       return;  // خروج
    }
 
-   // محاسبه سقف و کف رنج با iHighest/iLowest
-   int highestIdx = iHighest(_Symbol, m_timeframe, MODE_HIGH, bars, endShift);  // ایندکس سقف
-   int lowestIdx = iLowest(_Symbol, m_timeframe, MODE_LOW, bars, endShift);  // ایندکس کف
-   m_rangeHigh = iHigh(_Symbol, m_timeframe, highestIdx);  // سقف رنج
-   m_rangeLow = iLow(_Symbol, m_timeframe, lowestIdx);  // کف رنج
+   // مرحله اول - محاسبه مرزهای رنج بر اساس enum
+   switch(Inp_BoundaryDetectionMode)  // انتخاب روش محاسبه مرزها
+   {
+      case BOUNDARY_SIMPLE_EXTREMES:  // روش ساده
+      {
+         // محاسبه سقف و کف رنج با iHighest/iLowest
+         int highestIdx = iHighest(_Symbol, m_timeframe, MODE_HIGH, bars, endShift);  // ایندکس سقف
+         int lowestIdx = iLowest(_Symbol, m_timeframe, MODE_LOW, bars, endShift);  // ایندکس کف
+         m_rangeHigh = iHigh(_Symbol, m_timeframe, highestIdx);  // سقف رنج
+         m_rangeLow = iLow(_Symbol, m_timeframe, lowestIdx);  // کف رنج
+         break;
+      }
+      case BOUNDARY_STRUCTURAL_MEAN:  // روش پیشرفته
+      {
+         double high_candidates[], low_candidates[];  // آرایه‌های کاندیدا
+         CStructureAnalyzer::CollectBoundaryCandidates(_Symbol, m_timeframe, startShift, endShift, high_candidates, low_candidates);  // جمع‌آوری کاندیداها
+         m_rangeHigh = CStructureAnalyzer::CalculateTrimmedMean(high_candidates);  // میانگین پیرایش شده سقف
+         m_rangeLow = CStructureAnalyzer::CalculateTrimmedMean(low_candidates);  // میانگین پیرایش شده کف
+         break;
+      }
+   }
+
+
+        
+        
+          // (جدید) چک کردن اعتبار مرزهای محاسبه شده از تحلیل ساختاری
+        if (m_rangeHigh <= 0 || m_rangeLow <= 0 || m_rangeHigh <= m_rangeLow)
+        {
+            CLogger::Log("تحلیل ساختاری نتوانست مرزهای معتبری پیدا کند. رنج نامعتبر است.", m_rangeIndex);
+            m_lastInvalid = true;
+            m_lastEndTime = endTime;
+            m_currentState = RANGE_EXPIRED;
+            return; // خروج از تابع
+        }
 
    double rangeHeight = (m_rangeHigh - m_rangeLow) / _Point;  // ارتفاع به پوینت
+   
+   
    CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + ": سقف=" + DoubleToString(m_rangeHigh, _Digits) + ", کف=" + DoubleToString(m_rangeLow, _Digits) + ", ارتفاع=" + DoubleToString(rangeHeight, 0) + " پوینت", m_rangeIndex);  // چاپ دیباگ
 
-   // چک کیفیت رنج (ارتفاع در محدوده مجاز)
-   if(rangeHeight < m_minRangePoints || rangeHeight > m_maxRangePoints)  // شرط چک ارتفاع
+   // مرحله دوم - اعتبارسنجی کیفیت رنج بر اساس enum
+   switch(m_qualityFilter)  // انتخاب روش فیلتر کیفیت
    {
-      CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + " بی‌کیفیت است. ارتفاع خارج از محدوده مجاز.", m_rangeIndex);  // چاپ خطا
-      m_lastInvalid = true;  // تنظیم فلگ
-      m_lastEndTime = endTime;  // ذخیره پایان
-      m_currentState = RANGE_EXPIRED;  // تنظیم به منقضی
-      return;  // خروج
+      case QUALITY_MIN_MAX_POINTS:  // روش ساده
+      {
+         // چک کیفیت رنج (ارتفاع در محدوده مجاز)
+         if(rangeHeight < Inp_MinRangePoints || rangeHeight > Inp_MaxRangePoints)  // شرط چک ارتفاع
+         {
+            CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + " بی‌کیفیت است. ارتفاع خارج از محدوده مجاز.", m_rangeIndex);  // چاپ خطا
+            m_lastInvalid = true;  // تنظیم فلگ
+            m_lastEndTime = endTime;  // ذخیره پایان
+            m_currentState = RANGE_EXPIRED;  // تنظیم به منقضی
+            return;  // خروج
+         }
+         break;
+      }
+      case QUALITY_MA_FILTER:  // روش پیشرفته
+      {
+         if(!CStructureAnalyzer::IsMarketRanging(_Symbol, m_timeframe, startShift, endShift))  // چک رنجینگ
+         {
+            CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + " بی‌کیفیت است. بازار رنجینگ نیست.", m_rangeIndex);  // چاپ خطا
+            m_lastInvalid = true;  // تنظیم فلگ
+            m_lastEndTime = endTime;  // ذخیره پایان
+            m_currentState = RANGE_EXPIRED;  // تنظیم به منقضی
+            return;  // خروج
+         }
+         break;
+      }
    }
 
    // --- START: Calculate and Fix Offset Value --- (محاسبه ثابت افست در لحظه شناسایی برای جلوگیری از جابجایی)
@@ -1410,7 +1422,7 @@ void CRange::IdentifyAndValidateRange()  // تابع شناسایی
       ArraySetAsSeries(atr_buffer, true);  // تنظیم سری آرایه
       if(CopyBuffer(m_atrHandle, 0, 1, 1, atr_buffer) > 0)  // کپی ATR فعلی (shift 1 برای کندل بسته)
       {
-         m_fixedOffsetValue = atr_buffer[0] * m_atrMultiplier;  // محاسبه و ذخیره ثابت
+         m_fixedOffsetValue = atr_buffer[0] * Inp_Placement_ATR_Multiplier;  // محاسبه و ذخیره ثابت
       }
       else  // شرط شکست کپی
       {
@@ -1421,7 +1433,7 @@ void CRange::IdentifyAndValidateRange()  // تابع شناسایی
    }
    else  // حالت درصد
    {
-      m_fixedOffsetValue = (m_rangeHigh - m_rangeLow) * m_atrMultiplier / 100.0;  // محاسبه ثابت درصد
+      m_fixedOffsetValue = (m_rangeHigh - m_rangeLow) * Inp_Placement_Percent_Value / 100.0;  // محاسبه ثابت درصد
    }
    // --- END: Calculate and Fix Offset Value ---
 
@@ -1597,7 +1609,7 @@ void CRange::ProcessEntryAttempt()
    if(filterConfirmed)
    {
       CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + ": تمام تاییدها برقرار. تصمیم‌گیری ورود تطبیقی.", m_rangeIndex);
-      if(Inp_AdaptiveEntry_Enabled && BreakoutAnalyzer::IsBreakoutExplosive(this))  // چک انفجاری بودن
+      if(Inp_AdaptiveEntry_Enabled && BreakoutAnalyzer::IsBreakoutExplosive(*this))  // چک انفجاری بودن
       {
          ExecuteMarketOrder(isBuyAttempt);  // ورود آنی (مارکت)
       }
@@ -1618,6 +1630,7 @@ void CRange::ResetToArmedState()  // تابع ریست (اصلاح شده)
    m_isBuyAttempt = false;  // ریست جهت سیگنال برای تشخیص جدید
    m_breakerCandleTime = 0;  // ریست زمان بریک
    m_confirmationCandleTime = 0;  // ریست زمان تاییدیه
+   m_isFirstAttempt = false;  // تنظیم به false پس از تلاش ناموفق
    m_currentState = RANGE_ARMED;  // ریست حالت به مسلح و انتظار
    // نکته کلیدی: هیچ خط گرافیکی یا مسیری اینجا حذف نمی‌شود تا فرصت دوباره شکل گیرد
 }
@@ -1638,11 +1651,11 @@ void CRange::ExecuteMarketOrder(bool isBuy)  // اجرای سفارش مارکت
          CLogger::Log("خطا در گرفتن ATR برای SL رنج " + IntegerToString(m_rangeIndex), m_rangeIndex);
          return;
       }
-      adjustment = atr_buffer[0] * m_slAtrMultiplier;
+      adjustment = atr_buffer[0] * Inp_SL_ATR_Multiplier;
    }
    else
    {
-      adjustment = (m_rangeHigh - m_rangeLow) * m_slAtrMultiplier / 100.0;
+      adjustment = (m_rangeHigh - m_rangeLow) * Inp_SL_ATR_Multiplier / 100.0;
    }
 
    double basePoint = m_slStrategy == SL_OPPOSITE_SIDE ? (isBuy ? m_rangeLow : m_rangeHigh) : (isBuy ? m_rangeHigh : m_rangeLow);
@@ -1670,7 +1683,7 @@ void CRange::ExecuteMarketOrder(bool isBuy)  // اجرای سفارش مارکت
    double margin_required;
    if(!OrderCalcMargin(isBuy ? ORDER_TYPE_BUY : ORDER_TYPE_SELL, _Symbol, lotSize, price, margin_required))
    {
-      CLogger::Log("خطا در محاسبه مارجین برای رنج " + IntegerToString(m_rangeIndex), m_rangeIndex);
+      CLogger::Log("خطا در محاسبه مارجین برای رنج "+ IntegerToString(m_rangeIndex), m_rangeIndex);
       m_currentState = RANGE_EXPIRED;
       return;
    }
@@ -1703,7 +1716,7 @@ void CRange::ExecuteMarketOrder(bool isBuy)  // اجرای سفارش مارکت
    }
    m_activeTicket = result.deal;
    double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
-   g_tradeManager.RegisterTrade(m_activeTicket, m_magicNumber, m_rangeIndex, m_initialSlDistance, openPrice, m_rrRatio, m_partialClosePercent, m_trailingMode, m_trailingAtrPeriod, m_trailingAtrMultiplier, m_timeframe, m_trailingAtrHandle, m_trendFilterTimeframe);
+   g_tradeManager.RegisterTrade(m_activeTicket, m_magicNumber, m_rangeIndex, m_initialSlDistance, openPrice, Inp_RR_Ratio, Inp_PartialClosePercent, m_trailingMode, Inp_Trailing_ATR_Period, Inp_Trailing_ATR_Multiplier, m_timeframe, m_trailingAtrHandle, m_trendFilterTimeframe);
    m_currentState = RANGE_TRADE_ACTIVE;
    CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + " - " + (isBuy ? "BUY" : "SELL") + " Market Order Placed! Ticket: " + (string)m_activeTicket, m_rangeIndex);
    DisableOppositePath(isBuy);
@@ -1728,7 +1741,7 @@ void CRange::PlacePullbackStrategyOrders(bool isBuy)  // ثبت استراتژی
 void CRange::PlaceReversalStopOrder(bool isBuy)
 {
    // 1. محاسبه متغیرهای اولیه
-   double stopBuffer = 5 * _Point; // این مقدار میتواند در آینده به ورودی تبدیل شود
+   double stopBuffer = Inp_Pullback_StopBuffer_Points * _Point; // این مقدار میتواند در آینده به ورودی تبدیل شود
    double currentAsk = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
    double currentBid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
    double stopPrice = 0;
@@ -1754,10 +1767,10 @@ void CRange::PlaceReversalStopOrder(bool isBuy)
        double atr_buffer[];
        ArraySetAsSeries(atr_buffer, true);
        if(CopyBuffer(m_slAtrHandle, 0, 1, 1, atr_buffer) > 0)
-           adjustment = atr_buffer[0] * m_slAtrMultiplier;
+           adjustment = atr_buffer[0] * Inp_SL_ATR_Multiplier;
        else { CLogger::Log("خطا در گرفتن ATR برای SL پولبک.", m_rangeIndex); return; }
    } else {
-       adjustment = (m_rangeHigh - m_rangeLow) * m_slAtrMultiplier / 100.0;
+       adjustment = (m_rangeHigh - m_rangeLow) * Inp_SL_ATR_Multiplier / 100.0;
    }
 
    double basePoint = m_slStrategy == SL_OPPOSITE_SIDE ? (isBuy ? m_rangeLow : m_rangeHigh) : (isBuy ? m_rangeHigh : m_rangeLow);
@@ -1865,6 +1878,7 @@ void CRange::SoftCleanup()  // تابع پاکسازی نرم (اصلاح شده
    m_isBuyAttempt = false;  // ریست جهت سیگنال
    m_breakerCandleTime = 0;  // ریست زمان بریک
    m_confirmationCandleTime = 0;  // ریست زمان تاییدیه
+   m_isFirstAttempt = true;  // ریست فلگ اولین تلاش برای رنج جدید
 
    // ۵. اضافه کردن علامت پاکسازی روی کندل فعلی (کد 217 برای OBJ_ARROW)
    string cleanupMarkerName = "Cleanup_Marker_" + IntegerToString(m_rangeIndex);  // نام علامت پاکسازی
@@ -1962,7 +1976,7 @@ double CRange::GetSlATR()  // تابع گرفتن SL ATR
    return m_cachedSlATR;  // بازگشت کش
 }
 
-// گرفتن ATR کش‌شده برای تریلینگ: مشابه برای بهینه‌سازی تریلینگ (فقط برای ورود استفاده شود، برای مدیریت پویا استفاده نشود)
+// گرفتن ATR کش‌شده برای تریلینگ: مشابه برای بهینه‌سازی تریلینگ (فقط برای ورود استفاده شود، برای مدیریت پویا در مدیریت استفاده نشود)
 double CRange::GetTrailingATR()  // تابع گرفتن تریلینگ ATR
 {
    if(m_cachedTrailingATR <= 0)  // چک کش خالی
@@ -1980,19 +1994,9 @@ double CRange::GetTrailingATR()  // تابع گرفتن تریلینگ ATR
 }
 
 #endif // پایان چک include
+```
 
-
-
-
-
-
-
-
-
-
-
-
-
+```cpp
 //+------------------------------------------------------------------+
 //|                                                     TradeManager.mqh |
 //|                       Copyright 2025, Hipoalgorithm Team         |
@@ -2012,8 +2016,6 @@ double CRange::GetTrailingATR()  // تابع گرفتن تریلینگ ATR
 // تغییرات جدید: اضافه منطق TRAILING_ICHIMOKU_B در TrailingStop با استفاده از GetSenkouSpanB و بافر ثابت (10 * _Point). 
 // همچنین تغییر PartialClose به روش بستن مخالف برای سازگاری با بروکرها.
 // تغییرات نسخه 2.30: جایگزینی Print با CLogger::Log، کامنت‌گذاری دقیق هر خط، بدون تغییر در منطق.
-
-int INP_minichange = 5;
 
 #ifndef TRADE_MANAGER_MQH  // چک وجود
 #define TRADE_MANAGER_MQH  // تعریف ماکرو
@@ -2160,7 +2162,7 @@ public:
 // ...
 if((posType == POSITION_TYPE_BUY && trailing > sl) || (posType == POSITION_TYPE_SELL && trailing < sl)) // <--- این درسته!
 {
-   if(MathAbs(trailing - sl) < _Point * INP_minichange) return true;
+   if(MathAbs(trailing - sl) < _Point * Inp_Trailing_MinChange_Points) return true;
    CTrade trade;
    if(trade.PositionModify(ticket, trailing, PositionGetDouble(POSITION_TP)))
    {
@@ -2197,12 +2199,9 @@ if((posType == POSITION_TYPE_BUY && trailing > sl) || (posType == POSITION_TYPE_
 };
 
 #endif  // پایان
+```
 
-
-
-
-
-
+```cpp
 //+------------------------------------------------------------------+
 //|                                          CActiveTradeManager.mqh |
 //|                       Copyright 2025, Hipoalgorithm Team         |
@@ -2215,8 +2214,6 @@ if((posType == POSITION_TYPE_BUY && trailing > sl) || (posType == POSITION_TYPE_
 // ClosePosition برای بستن کامل استفاده می‌شود.
 // تغییرات جدید: کلاس جدید بر اساس بلوپرینت، با ماشین حالت داخلی برای هر معامله.
 // تغییرات نسخه 2.30: بدون تغییر در منطق، فقط کامنت‌گذاری به‌روزرسانی شده برای سازگاری با پولبک.
-
-int INP_breakEvenBuffer = 5;
 
 #ifndef ACTIVE_TRADE_MANAGER_MQH
 #define ACTIVE_TRADE_MANAGER_MQH
@@ -2336,7 +2333,7 @@ continue;
             case TRADE_RISK_FREE:  // مرحله ریسک-فری
                if(!m_managedTrades[i].isRiskFree)  // چک فلگ
                {
-                  double breakEvenBuffer = _Point * INP_breakEvenBuffer;  // بافر
+                  double breakEvenBuffer = _Point * Inp_BE_Buffer_Points;  // بافر
                   double newSL = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? m_managedTrades[i].entryPrice + breakEvenBuffer : m_managedTrades[i].entryPrice - breakEvenBuffer;  // SL جدید
                   if(CTradeManager::MoveSLToBreakEven(m_managedTrades[i].ticket, newSL))  // انتقال
                   {
@@ -2405,15 +2402,9 @@ continue;
 
 
 #endif
+```
 
-
-
-
-
-
-
-
-
+```cpp
 //+------------------------------------------------------------------+
 //|                                                     RiskManager.mqh |
 //|                       Copyright 2025, Hipoalgorithm Team         |
@@ -2482,12 +2473,10 @@ public:
    }
 };
 
-#endif  // پایان|
+#endif  // پایان
+```
 
-
-
-
-
+```cpp
 //+------------------------------------------------------------------+
 //|                                                     TimeHelper.mqh |
 //|                       Copyright 2025, Hipoalgorithm Team         |
@@ -2531,7 +2520,7 @@ public:
          gmt_end_time += 86400;  // اضافه روز
       }
 
-      // حلقه هوشمند هوشمند برای پیدا کردن آخرین روز معاملاتی (برای آخر هفته‌ها و کریپتو)
+      // حلقه برای پیدا کردن آخرین روز معاملاتی (برای آخر هفته‌ها و کریپتو)
       while(gmt_now < gmt_start_time)  // چک زمان فعلی قبل از شروع
       {
          gmt_start_time -= 86400;  // عقب بردن به روز قبل
@@ -2568,15 +2557,9 @@ public:
 };
 
 #endif  // پایان
+```
 
-
-
-
-
-
-
-
-
+```cpp
 //+------------------------------------------------------------------+
 //|                                                     TrendFilter.mqh |
 //|                       Copyright 2025, Hipoalgorithm Team         |
@@ -2720,13 +2703,9 @@ public:
 };
 
 #endif  // پایان
+```
 
-
-
-
-
-
-
+```cpp
 //+------------------------------------------------------------------+
 //|                                                   VisualManager.mqh |
 //|                       Copyright 2025, Hipoalgorithm Team         |
@@ -2803,12 +2782,9 @@ public:
 };
 
 #endif  // پایان
+```
 
-
-
-
-
-
+```cpp
 //+------------------------------------------------------------------+
 //|                                                        Logger.mqh |
 //|                       Copyright 2025, Hipoalgorithm Team         |
@@ -2858,17 +2834,9 @@ public:
 string CLogger::m_lastMessage = "";  // مقداردهی اولیه متغیر استاتیک
 
 #endif  // پایان
+```
 
-
-
-
-
-
-
-
-
-
-
+```cpp
 //+------------------------------------------------------------------+
 //|                                                BreakoutAnalyzer.mqh |
 //|                       Copyright 2025, Hipoalgorithm Team         |
@@ -2922,9 +2890,132 @@ public:
                return trendAtConfirm != TREND_NEUTRAL && (range.GetIsBuyAttempt() ? trendAtConfirm == TREND_BUY : trendAtConfirm == TREND_SELL);  // هم‌جهت
             }
 
+         case MODE_FIRST_ATTEMPT:
+            {
+               if(Inp_Confirmation_Strategy == CONFIRMATION_TIMEOUT) return bodyRatio >= Inp_ExplosiveCandleBodyRatio;  // fallback به MODE_CANDLE_ONLY
+               return range.GetIsFirstAttempt();  // چک اولین تلاش
+            }
+
          default: return false;  // پیش‌فرض
       }
    }
 };
 
 #endif  // پایان
+```
+
+```cpp
+//+------------------------------------------------------------------+
+//|                                                StructureUtils.mqh |
+//|                       Copyright 2025, Hipoalgorithm Team         |
+//|                       https://hipoalgorithm.com                  |
+//+------------------------------------------------------------------+
+// این فایل کلاس CStructureAnalyzer را تعریف می‌کند که تحلیل ساختاری بازار را مدیریت می‌کند.
+// استراتژی کلی: برای تشخیص رنج‌های با کیفیت بالا با استفاده از فرکتال‌ها، PDH/PDL و MA کراس.
+// منطق فایل StructureUtils.mqh: کلاس استاتیک با توابع برای تشخیص رنجینگ، جمع‌آوری کاندیداها و محاسبه میانگین پیرایش شده.
+// این فایل توسط CRange برای ادغام در IdentifyAndValidateRange فراخوانی می‌شود.
+
+#ifndef STRUCTURE_UTILS_MQH
+#define STRUCTURE_UTILS_MQH
+
+#include <Trade\SymbolInfo.mqh> // برای دسترسی به PDH/PDL
+
+class CStructureAnalyzer
+{
+public:
+   // تابع برای تشخیص حالت رنج بازار
+   static bool IsMarketRanging(string symbol, ENUM_TIMEFRAMES timeframe, int start_shift, int end_shift)
+   {
+      // ایجاد هندل MA سریع
+      int maFastHandle = iMA(symbol, timeframe, Inp_MA_Fast_Period, 0, Inp_MA_Method, Inp_MA_Applied_Price);  // هندل MA سریع
+      if(maFastHandle == INVALID_HANDLE) return false;  // چک هندل
+
+      // ایجاد هندل MA کند
+      int maSlowHandle = iMA(symbol, timeframe, Inp_MA_Slow_Period, 0, Inp_MA_Method, Inp_MA_Applied_Price);  // هندل MA کند
+      if(maSlowHandle == INVALID_HANDLE) 
+      {
+         IndicatorRelease(maFastHandle);  // آزادسازی
+         return false;  // چک هندل
+      }
+
+      double maFast[], maSlow[];  // آرایه‌ها
+      ArraySetAsSeries(maFast, true);  // تنظیم سری
+      ArraySetAsSeries(maSlow, true);  // تنظیم سری
+
+      // کپی بافرها (برای بازه مشخص شده)
+      int numBars = start_shift - end_shift + 1;  // تعداد بارها
+      if(CopyBuffer(maFastHandle, 0, end_shift, numBars, maFast) <= 0 || CopyBuffer(maSlowHandle, 0, end_shift, numBars, maSlow) <= 0)
+      {
+         IndicatorRelease(maFastHandle);  // آزادسازی
+         IndicatorRelease(maSlowHandle);  // آزادسازی
+         return false;  // چک کپی
+      }
+
+      int crossCount = 0;  // شمارنده کراس
+      for(int k = 1; k < numBars; k++)  // حلقه برای شمارش کراس
+      {
+         if((maFast[k-1] > maSlow[k-1] && maFast[k] < maSlow[k]) || (maFast[k-1] < maSlow[k-1] && maFast[k] > maSlow[k])) crossCount++;  // تشخیص کراس
+      }
+
+      IndicatorRelease(maFastHandle);  // آزادسازی هندل سریع
+      IndicatorRelease(maSlowHandle);  // آزادسازی هندل کند
+
+      return crossCount > 1;  // اگر بیش از 1 کراس، رنجینگ است
+   }
+
+   // تابع برای جمع‌آوری قیمت‌های کاندیدا برای مرزهای رنج
+   static void CollectBoundaryCandidates(string symbol, ENUM_TIMEFRAMES timeframe, int start_shift, int end_shift, double &high_candidates[], double &low_candidates[])
+   {
+      ArrayResize(high_candidates, 0);  // ریست آرایه سقف
+      ArrayResize(low_candidates, 0);  // ریست آرایه کف
+
+      // اضافه PDH/PDL (Previous Day High/Low)
+      int dailyShift = iBarShift(symbol, PERIOD_D1, iTime(symbol, timeframe, start_shift));  // شیفت روزانه
+      double pdh = iHigh(symbol, PERIOD_D1, dailyShift + 1);  // PDH
+      double pdl = iLow(symbol, PERIOD_D1, dailyShift + 1);  // PDL
+      ArrayAdd(high_candidates, pdh);  // اضافه به سقف
+      ArrayAdd(low_candidates, pdl);  // اضافه به کف
+
+      // جمع‌آوری فرکتال‌ها (با iFractals)
+      int fractalHandle = iFractals(symbol, timeframe);  // هندل فرکتال
+      if(fractalHandle == INVALID_HANDLE) return;  // چک هندل
+
+      double upFractals[], downFractals[];  // آرایه فرکتال‌ها
+      ArraySetAsSeries(upFractals, true);  // سری
+      ArraySetAsSeries(downFractals, true);  // سری
+      int numBars = start_shift - end_shift + 1;  // تعداد
+      if(CopyBuffer(fractalHandle, UPPER_LINE, end_shift, numBars, upFractals) > 0 && CopyBuffer(fractalHandle, LOWER_LINE, end_shift, numBars, downFractals) > 0)
+      {
+         for(int k = 0; k < numBars; k++)  // حلقه برای اضافه فرکتال‌ها
+         {
+            if(upFractals[k] != EMPTY_VALUE) ArrayAdd(high_candidates, upFractals[k]);  // فرکتال بالا
+            if(downFractals[k] != EMPTY_VALUE) ArrayAdd(low_candidates, downFractals[k]);  // فرکتال پایین
+         }
+      }
+
+      IndicatorRelease(fractalHandle);  // آزادسازی
+   }
+
+   // تابع برای محاسبه میانگین پیرایش شده (Trimmed Mean)
+   static double CalculateTrimmedMean(double &array_of_candidates[])
+   {
+      int size = ArraySize(array_of_candidates);  // اندازه آرایه
+      if(size == 0) return 0;  // چک خالی
+
+      ArraySort(array_of_candidates);  // سورت آرایه
+
+      int trimCount = (int)MathRound(size * 0.1);  // 10% برای پیرایش
+      double sum = 0;  // جمع
+      int count = 0;  // شمارنده
+      for(int k = trimCount; k < size - trimCount; k++)  // حلقه وسط 80%
+      {
+         sum += array_of_candidates[k];  // اضافه به جمع
+         count++;  // افزایش شمارنده
+      }
+
+      return sum / count;  // میانگین
+   }
+};
+
+#endif
+```
