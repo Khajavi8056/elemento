@@ -2922,6 +2922,16 @@ public:
 
 class CStructureAnalyzer
 {
+private:
+   // تابع کمکی برای افزودن آیتم به آرایه (چون MQL5 تابع ArrayAdd ندارد)
+   // این تابع به صورت دستی اندازه آرایه را یکی زیاد کرده و مقدار جدید را به انتهای آن اضافه می‌کند.
+   static void _ArrayAdd(double &arr[], double value)
+   {
+      int size = ArraySize(arr);
+      ArrayResize(arr, size + 1);
+      arr[size] = value;
+   }
+
 public:
    // تابع برای تشخیص حالت رنج بازار
    static bool IsMarketRanging(string symbol, ENUM_TIMEFRAMES timeframe, int start_shift, int end_shift)
@@ -2973,8 +2983,8 @@ public:
       int dailyShift = iBarShift(symbol, PERIOD_D1, iTime(symbol, timeframe, start_shift));  // شیفت روزانه
       double pdh = iHigh(symbol, PERIOD_D1, dailyShift + 1);  // PDH
       double pdl = iLow(symbol, PERIOD_D1, dailyShift + 1);  // PDL
-      ArrayAdd(high_candidates, pdh);  // اضافه به سقف
-      ArrayAdd(low_candidates, pdl);  // اضافه به کف
+      _ArrayAdd(high_candidates, pdh);  // اضافه به سقف
+      _ArrayAdd(low_candidates, pdl);  // اضافه به کف
 
       // جمع‌آوری فرکتال‌ها (با iFractals)
       int fractalHandle = iFractals(symbol, timeframe);  // هندل فرکتال
@@ -2988,8 +2998,8 @@ public:
       {
          for(int k = 0; k < numBars; k++)  // حلقه برای اضافه فرکتال‌ها
          {
-            if(upFractals[k] != EMPTY_VALUE) ArrayAdd(high_candidates, upFractals[k]);  // فرکتال بالا
-            if(downFractals[k] != EMPTY_VALUE) ArrayAdd(low_candidates, downFractals[k]);  // فرکتال پایین
+            if(upFractals[k] != EMPTY_VALUE) _ArrayAdd(high_candidates, upFractals[k]);  // فرکتال بالا
+            if(downFractals[k] != EMPTY_VALUE) _ArrayAdd(low_candidates, downFractals[k]);  // فرکتال پایین
          }
       }
 
@@ -3005,6 +3015,8 @@ public:
       ArraySort(array_of_candidates);  // سورت آرایه
 
       int trimCount = (int)MathRound(size * 0.1);  // 10% برای پیرایش
+      if(size - (2 * trimCount) <= 0) return 0; // اگر بعد از پیرایش چیزی نماند، صفر برگردان
+
       double sum = 0;  // جمع
       int count = 0;  // شمارنده
       for(int k = trimCount; k < size - trimCount; k++)  // حلقه وسط 80%
@@ -3013,9 +3025,13 @@ public:
          count++;  // افزایش شمارنده
       }
 
+      if(count == 0) return 0; // جلوگیری از تقسیم بر صفر
+
       return sum / count;  // میانگین
    }
 };
 
 #endif
+
 ```
+
