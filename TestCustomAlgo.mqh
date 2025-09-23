@@ -334,7 +334,7 @@ double OnTester()
                            (trade_quality_score * WEIGHT_TRADE_QUALITY);
 
    // مقیاس‌بندی برای optimizer (بزرگ کردن برای تمایز)
-   double final_score = weighted_score * 100000.0;
+   double final_score = weighted_score * 1000.0;
    final_score = MathRound(final_score);
 
    // دیباگ پرینت
@@ -344,4 +344,3 @@ double OnTester()
    return final_score;
 }
 //+------------------------------------------------------------------+
-
