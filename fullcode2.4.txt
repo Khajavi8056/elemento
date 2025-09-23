@@ -2915,7 +2915,11 @@ public:
       double breakerLow = iLow(_Symbol, range.GetTimeframe(), breakerShift);  // لو بریک
       double bodySize = MathAbs(breakerClose - breakerOpen);  // اندازه بدنه
       double candleSize = breakerHigh - breakerLow;  // اندازه کل کندل
-      double bodyRatio = bodySize / candleSize;  // نسبت بدنه
+      if(candleSize==0)
+        {
+          return false;
+         }
+     double bodyRatio = bodySize / candleSize;  // نسبت بدنه
       if(bodyRatio < Inp_MinCandleBodyRatio) return false;  // ضعیف: رد سیگنال
 
       // قدم دوم: تحلیل بر اساس حالت
@@ -3078,4 +3082,5 @@ public:
 #endif
 
 ```
+
 
