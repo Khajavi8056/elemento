@@ -136,7 +136,40 @@ input color Inp_Visual_FontColor_Sell = clrRed; // رنگ متن برای رون
 input color Inp_Visual_FontColor_Neutral = clrGray; // رنگ متن برای روند NEUTRAL (خاکستری برای خنثی، قابل تغییر)
 input int Inp_Visual_X_Offset = 10; // فاصله افقی از لبه چارت (پیکسل برای موقعیت مناسب، 0-50)
 input int Inp_Visual_Y_Offset = 10; // فاصله عمودی از لبه چارت (پیکسل برای موقعیت مناسب، 0-50)
+input group "تنظیمات ورود تطبیقی (نسخه 2.3)"
+input bool Inp_AdaptiveEntry_Enabled = true; // فعال کردن سیستم ورود تطبیقی (اگر خاموش باشد، همیشه پولبک استفاده می‌شود)
+enum ENUM_ADAPTIVE_MODE
+{
+   MODE_CANDLE_ONLY,         // تحلیل فقط بر اساس قدرت کندل شکست
+   MODE_CANDLE_CONFIRM,      // تحلیل بر اساس کندل شکست + تاییدیه فوری
+   MODE_CANDLE_CONFIRM_ICHI,  // تحلیل بر اساس کندل شکست + تاییدیه فوری + ایچیموکو همزمان
+   MODE_FIRST_ATTEMPT        // جدید: تحلیل بر اساس اولین تلاش موفق برای شکست
+};
+input ENUM_ADAPTIVE_MODE Inp_AdaptiveMode = MODE_CANDLE_CONFIRM_ICHI; // حالت تحلیل قدرت شکست
+enum ENUM_ICHIMOKU_MODE
+{
+   MODE_KUMO_CLOUD,  // فیلتر بر اساس ابر کومو (روش فعلی)
+   MODE_CHIKOU_SPAN  // فیلتر بر اساس چیکو اسپن (روش جدید)
+};
+input ENUM_ICHIMOKU_MODE Inp_IchimokuMode = MODE_CHIKOU_SPAN; // انتخاب نوع فیلتر روند ایچیموکو
+input double Inp_MinCandleBodyRatio = 0.3; // حداقل نسبت بدنه به کل کندل برای "ضعیف نبودن" (0.1-0.9)
+input double Inp_ExplosiveCandleBodyRatio = 0.7; // حداقل نسبت بدنه به کل کندل برای "انفجاری بودن" (0.1-0.9)
 
+// گروه ورودی جدید برای تنظیمات تحلیل ساختاری
+input group "تنظیمات تحلیل ساختاری"
+input int Inp_MA_Fast_Period = 20; // دوره مووینگ اوریج سریع برای فیلتر رنج
+input int Inp_MA_Slow_Period = 50; // دوره مووینگ اوریج کند برای فیلتر رنج
+input ENUM_MA_METHOD Inp_MA_Method = MODE_EMA; // متد مووینگ اوریج
+input ENUM_APPLIED_PRICE Inp_MA_Applied_Price = PRICE_CLOSE; // قیمت اعمالی مووینگ اوریج
+// (جدید) گروه ورودی برای مدیریت سرمایه در ورودهای آنی (انفجاری)
+input group "مدیریت سرمایه (ورود آنی/انفجاری)"
+input double   Inp_Market_RR_Ratio          = 1.2;      // نسبت R:R برای خروج پله‌ای (ورود آنی)
+input double   Inp_Market_PartialClosePercent = 70.0;    // درصد بستن پله‌ای (ورود آنی)
+input int      Inp_Market_BE_Buffer_Points  = 3;        // بافر ریسک-فری به پوینت (ورود آنی)
+
+// (جدید) گروه ورودی برای استراتژی استاپ‌لاس تطبیقی
+input group "تنظیمات استاپ‌لاس تطبیقی"
+input bool     Inp_AdaptiveSL_Enabled     = true;     // آیا SL در ورود انفجاری به سطح شکست منتقل شود؟
 // گروه ورودی برای تنظیمات رنج 1 (اولین رنج زمانی، معمولاً برای سشن آسیا یا شبانه)
 // این گروه پارامترهای اختصاصی رنج 1 را شامل می‌شود
 input group "تنظیمات رنج 1"  // عنوان گروه
@@ -210,31 +243,6 @@ input color InpRange4_Color = clrYellow; // رنگ مستطیل رنج 4
 input ENUM_RANGE_QUALITY_FILTER InpRange4_QualityFilter = QUALITY_MA_FILTER; // فیلتر کیفیت رنج
 
 // (جدید در 2.30) گروه ورودی برای ورود تطبیقی: برای تحلیل قدرت شکست و انتخاب استراتژی ورود
-input group "تنظیمات ورود تطبیقی (نسخه 2.3)"
-input bool Inp_AdaptiveEntry_Enabled = true; // فعال کردن سیستم ورود تطبیقی (اگر خاموش باشد، همیشه پولبک استفاده می‌شود)
-enum ENUM_ADAPTIVE_MODE
-{
-   MODE_CANDLE_ONLY,         // تحلیل فقط بر اساس قدرت کندل شکست
-   MODE_CANDLE_CONFIRM,      // تحلیل بر اساس کندل شکست + تاییدیه فوری
-   MODE_CANDLE_CONFIRM_ICHI,  // تحلیل بر اساس کندل شکست + تاییدیه فوری + ایچیموکو همزمان
-   MODE_FIRST_ATTEMPT        // جدید: تحلیل بر اساس اولین تلاش موفق برای شکست
-};
-input ENUM_ADAPTIVE_MODE Inp_AdaptiveMode = MODE_CANDLE_CONFIRM_ICHI; // حالت تحلیل قدرت شکست
-enum ENUM_ICHIMOKU_MODE
-{
-   MODE_KUMO_CLOUD,  // فیلتر بر اساس ابر کومو (روش فعلی)
-   MODE_CHIKOU_SPAN  // فیلتر بر اساس چیکو اسپن (روش جدید)
-};
-input ENUM_ICHIMOKU_MODE Inp_IchimokuMode = MODE_CHIKOU_SPAN; // انتخاب نوع فیلتر روند ایچیموکو
-input double Inp_MinCandleBodyRatio = 0.3; // حداقل نسبت بدنه به کل کندل برای "ضعیف نبودن" (0.1-0.9)
-input double Inp_ExplosiveCandleBodyRatio = 0.7; // حداقل نسبت بدنه به کل کندل برای "انفجاری بودن" (0.1-0.9)
-
-// گروه ورودی جدید برای تنظیمات تحلیل ساختاری
-input group "تنظیمات تحلیل ساختاری"
-input int Inp_MA_Fast_Period = 20; // دوره مووینگ اوریج سریع برای فیلتر رنج
-input int Inp_MA_Slow_Period = 50; // دوره مووینگ اوریج کند برای فیلتر رنج
-input ENUM_MA_METHOD Inp_MA_Method = MODE_EMA; // متد مووینگ اوریج
-input ENUM_APPLIED_PRICE Inp_MA_Applied_Price = PRICE_CLOSE; // قیمت اعمالی مووینگ اوریج
 
 #endif  // پایان چک include
 ```
@@ -273,7 +281,7 @@ input ENUM_APPLIED_PRICE Inp_MA_Applied_Price = PRICE_CLOSE; // قیمت اعم�
 #include "TrendFilter.mqh"  // کلاس فیلتر روند برای تعیین جهت روند
 #include "VisualManager.mqh"  // کلاس مدیر نمایش برای نمایش بصری روی چارت
 #include "CActiveTradeManager.mqh"  // کلاس جدید مدیر معاملات فعال برای مدیریت تمام معاملات باز
-
+#include    "TestCustomAlgo.mqh"    //یک ابزار برای تست و اپتیایز کاستوم
 // آرایه برای ذخیره ۴ رنج (هر کدام یک نمونه از کلاس CRange برای مدیریت مستقل رنج‌ها)
 // این آرایه اجازه می‌دهد چهار رنج همزمان بدون تداخل کار کنند
 CRange g_ranges[4];  // آرایه رنج‌ها
@@ -469,21 +477,22 @@ for(int i = 0; i < 4; i++)
             }
 
             // ۳. ثبت معامله در مدیر معاملات (این خط حیاتی‌ترین بخش اصلاحه)
-            g_tradeManager.RegisterTrade(
-                ticket,
-                magic,
-                i + 1, // Range Index
-                initial_sl_dist,
-                openPrice,
-                rec_rr_ratio,
-                rec_partial_percent,
-                rec_trailing_mode,
-                rec_trailing_atr_period,
-                rec_trailing_atr_multiplier,
-                rec_exec_tf,
-                g_ranges[i].GetTrailingAtrHandle(), // هندل تریلینگ رو از خود رنج میگیریم
-                rec_trend_tf
-            );
+      g_tradeManager.RegisterTrade(
+    ticket,
+    magic,
+    i + 1, // Range Index
+    initial_sl_dist,
+    openPrice,
+    rec_rr_ratio,
+    rec_partial_percent,
+    rec_trailing_mode,
+    rec_trailing_atr_period,
+    rec_trailing_atr_multiplier,
+    rec_exec_tf,
+    g_ranges[i].GetTrailingAtrHandle(), // هندل تریلینگ رو از خود رنج میگیریم
+    rec_trend_tf,
+    Inp_BE_Buffer_Points // (جدید) اضافه کردن بافر ریسک-فری عمومی برای معاملات بازیابی شده
+);
             CLogger::Log("معامله بازیابی شده با موفقیت به ActiveTradeManager ثبت شد.", i + 1);
 
 
@@ -835,6 +844,7 @@ double NormalizePrice(double price)  // تابع نرمال‌سازی قیمت
 ```
 
 ```cpp
+
 //+------------------------------------------------------------------+
 //|                                                         CRange.mqh |
 //|                       Copyright 2025, Hipoalgorithm Team         |
@@ -1270,7 +1280,14 @@ void CRange::UpdateOnNewBar()  // تابع به‌روزرسانی
                   {
                      m_activeTicket = posTicket;  // ذخیره
                      double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);  // قیمت
-                     g_tradeManager.RegisterTrade(posTicket, m_magicNumber, m_rangeIndex, m_initialSlDistance, openPrice, Inp_RR_Ratio, Inp_PartialClosePercent, m_trailingMode, Inp_Trailing_ATR_Period, Inp_Trailing_ATR_Multiplier, m_timeframe, m_trailingAtrHandle, m_trendFilterTimeframe);  // ثبت
+                    g_tradeManager.RegisterTrade(posTicket, m_magicNumber, m_rangeIndex, 
+                             m_initialSlDistance, openPrice, 
+                             Inp_RR_Ratio, 
+                             Inp_PartialClosePercent, 
+                             m_trailingMode, Inp_Trailing_ATR_Period, 
+                             Inp_Trailing_ATR_Multiplier, m_timeframe, 
+                             m_trailingAtrHandle, m_trendFilterTimeframe,
+                             Inp_BE_Buffer_Points);  // ثبت
                      m_pendingOrderTicket = 0;  // ریست
                      m_currentState = RANGE_TRADE_ACTIVE;  // تغییر
                      orderActivated = true;  // فلگ
@@ -1716,7 +1733,15 @@ void CRange::ExecuteMarketOrder(bool isBuy)  // اجرای سفارش مارکت
    }
    m_activeTicket = result.deal;
    double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
-   g_tradeManager.RegisterTrade(m_activeTicket, m_magicNumber, m_rangeIndex, m_initialSlDistance, openPrice, Inp_RR_Ratio, Inp_PartialClosePercent, m_trailingMode, Inp_Trailing_ATR_Period, Inp_Trailing_ATR_Multiplier, m_timeframe, m_trailingAtrHandle, m_trendFilterTimeframe);
+  g_tradeManager.RegisterTrade(m_activeTicket, m_magicNumber, m_rangeIndex, 
+                             m_initialSlDistance, openPrice, 
+                             Inp_Market_RR_Ratio, // استفاده از R:R مخصوص ورود آنی
+                             Inp_Market_PartialClosePercent, // استفاده از درصد خروج مخصوص ورود آنی
+                             m_trailingMode, Inp_Trailing_ATR_Period, 
+                             Inp_Trailing_ATR_Multiplier, m_timeframe, 
+                             m_trailingAtrHandle, m_trendFilterTimeframe,
+                             Inp_Market_BE_Buffer_Points); // استفاده از بافر ریسک-فری مخصوص ورود آنی
+
    m_currentState = RANGE_TRADE_ACTIVE;
    CLogger::Log("رنج " + IntegerToString(m_rangeIndex) + " - " + (isBuy ? "BUY" : "SELL") + " Market Order Placed! Ticket: " + (string)m_activeTicket, m_rangeIndex);
    DisableOppositePath(isBuy);
@@ -2248,6 +2273,7 @@ struct ManagedTrade
    int atrHandle;  // هندل ATR
    ENUM_TIMEFRAMES trendTf;  // تایم‌فریم فیلتر
    ENUM_TRADE_MANAGEMENT_STATE currentState;  // حالت فعلی مدیریت
+    double beBufferPoints;
 };
 
 // کلاس CActiveTradeManager برای مدیریت تمام معاملات باز
@@ -2261,7 +2287,7 @@ public:
 
    // ثبت معامله جدید: اضافه به آرایه و تنظیم حالت اولیه
    void RegisterTrade(ulong ticket, long magicNumber, int rangeIndex, double initialSlDistance, double entryPrice, double rrRatio, double partialClosePercent,
-                      ENUM_TRAILING_MODE trailingMode, int trailingAtrPeriod, double trailingAtrMultiplier, ENUM_TIMEFRAMES timeframe, int atrHandle, ENUM_TIMEFRAMES trendTf)
+                      ENUM_TRAILING_MODE trailingMode, int trailingAtrPeriod, double trailingAtrMultiplier, ENUM_TIMEFRAMES timeframe, int atrHandle, ENUM_TIMEFRAMES trendTf,  double beBuffer)
    {
       int size = ArraySize(m_managedTrades);  // اندازه فعلی آرایه
       ArrayResize(m_managedTrades, size + 1);  // افزایش اندازه
@@ -2283,6 +2309,7 @@ public:
       m_managedTrades[size].atrHandle = atrHandle;  // تنظیم هندل ATR
       m_managedTrades[size].trendTf = trendTf;  // تنظیم تایم‌فریم فیلتر
       m_managedTrades[size].currentState = TRADE_PARTIAL_CLOSE;  // حالت اولیه: پله‌ای
+      m_managedTrades[size].beBufferPoints = beBuffer; // (جدید) ذخیره بافر ریسک-فری مخصوص
       CLogger::Log("معامله جدید ثبت شد. تیکت: " + (string)ticket + ", رنج: " + IntegerToString(rangeIndex));  // لاگ ثبت
    }
 
@@ -2333,8 +2360,7 @@ continue;
             case TRADE_RISK_FREE:  // مرحله ریسک-فری
                if(!m_managedTrades[i].isRiskFree)  // چک فلگ
                {
-                  double breakEvenBuffer = _Point * Inp_BE_Buffer_Points;  // بافر
-                  double newSL = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? m_managedTrades[i].entryPrice + breakEvenBuffer : m_managedTrades[i].entryPrice - breakEvenBuffer;  // SL جدید
+                  double breakEvenBuffer = _Point * m_managedTrades[i].beBufferPoints;                  double newSL = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) ? m_managedTrades[i].entryPrice + breakEvenBuffer : m_managedTrades[i].entryPrice - breakEvenBuffer;  // SL جدید
                   if(CTradeManager::MoveSLToBreakEven(m_managedTrades[i].ticket, newSL))  // انتقال
                   {
                      m_managedTrades[i].isRiskFree = true;  // تنظیم فلگ
@@ -2402,6 +2428,7 @@ continue;
 
 
 #endif
+
 ```
 
 ```cpp
@@ -3034,4 +3061,5 @@ public:
 #endif
 
 ```
+
 
