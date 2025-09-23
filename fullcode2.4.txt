@@ -1675,8 +1675,17 @@ void CRange::ExecuteMarketOrder(bool isBuy)  // اجرای سفارش مارکت
       adjustment = (m_rangeHigh - m_rangeLow) * Inp_SL_ATR_Multiplier / 100.0;
    }
 
-   double basePoint = m_slStrategy == SL_OPPOSITE_SIDE ? (isBuy ? m_rangeLow : m_rangeHigh) : (isBuy ? m_rangeHigh : m_rangeLow);
-   double slPrice = isBuy ? NormalizePrice(basePoint - adjustment) : NormalizePrice(basePoint + adjustment);
+   // (جدید) منطق استاپ‌لاس تطبیقی
+ENUM_SL_STRATEGY slStrategyForThisTrade = m_slStrategy; // استراتژی پیش‌فرض رو از تنظیمات رنج بگیر
+if(Inp_AdaptiveSL_Enabled)
+{
+    // اگر آپشن فعال بود، استراتژی رو برای این ورود خاص و انفجاری، به حالت تهاجمی تغییر بده
+    slStrategyForThisTrade = SL_BREAKOUT_LEVEL; 
+    CLogger::Log("استاپ لاس تطبیقی فعال است. استراتژی برای این ورود به SL_BREAKOUT_LEVEL تغییر یافت.", m_rangeIndex);
+}
+
+double basePoint = slStrategyForThisTrade == SL_OPPOSITE_SIDE ? (isBuy ? m_rangeLow : m_rangeHigh) : (isBuy ? m_rangeHigh : m_rangeLow);
+double slPrice = isBuy ? NormalizePrice(basePoint - adjustment) : NormalizePrice(basePoint + adjustment);
    double slDistance = MathAbs(price - slPrice);
    m_initialSlDistance = slDistance;
 
@@ -3061,5 +3070,4 @@ public:
 #endif
 
 ```
-
 
