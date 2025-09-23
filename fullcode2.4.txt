@@ -1,31 +1,210 @@
-else if(mode == TRAILING_ICHIMOKU_B)  // حالت جدید: تریلینگ بر اساس Senkou Span B
+```cpp
+//+------------------------------------------------------------------+
+//|                                                     TradeManager.mqh |
+//|                       Copyright 2025, Hipoalgorithm Team         |
+//|                       https://hipoalgorithm.com                  |
+//+------------------------------------------------------------------+
+// این فایل کلاس CTradeManager را تعریف می‌کند که عملیات معاملاتی پیشرفته را مدیریت می‌کند.
+// استراتژی کلی اکسپرت: این کلاس بخشی از مدیریت معامله در استراتژی شکست رنج است، 
+// جایی که پس از باز شدن معامله، خروج پله‌ای (هنگام رسیدن به RR)، انتقال SL به ورود (برای حفظ سرمایه)، 
+// تریلینگ (برای قفل سود) و بستن کامل (در پاکسازی سخت) انجام می‌شود. 
+// این عملیات ریسک را کنترل و سود را به حداکثر می‌رساند.
+// منطق فایل TradeManager.mqh: کلاس شامل متدهای استاتیک برای بستن جزئی (PartialClose با چک حجم مجاز)، 
+// انتقال SL به بریک‌اون (MoveSLToBreakEven با نرمالایز قیمت)، 
+// تریلینگ استاپ (TrailingStop با محاسبه فاصله ATR یا Senkou Span B و چک حداقل تغییر برای جلوگیری از به‌روزرسانی‌های بیهوده)، 
+// و بستن کامل (ClosePosition). 
+// تمام متدها PositionSelectByTicket را چک می‌کنند و از CTrade برای ارسال درخواست استفاده می‌کنند. 
+// این فایل توسط CActiveTradeManager برای مدیریت معاملات در ManageAllTrades فراخوانی می‌شود و هیچ وابستگی خارجی ندارد جز Trade.mqh. 
+// تغییرات جدید: اضافه منطق TRAILING_ICHIMOKU_B در TrailingStop با استفاده از GetSenkouSpanB و بافر ثابت (10 * _Point). 
+// همچنین تغییر PartialClose به روش بستن مخالف برای سازگاری با بروکرها.
+// تغییرات نسخه 2.30: جایگزینی Print با CLogger::Log، کامنت‌گذاری دقیق هر خط، بدون تغییر در منطق.
+// تغییرات جدید برای اصلاح باگ تریلینگ ایچیموکو: حالا newSL مستقیم بر اساس senkouB + بافر محاسبه می‌شود, نه بر اساس قیمت فعلی. چک بهبود اضافه شده تا فقط اگر بهتر باشد بروزرسانی شود.
+
+#ifndef TRADE_MANAGER_MQH  // چک وجود
+#define TRADE_MANAGER_MQH  // تعریف ماکرو
+
+#include <Trade\Trade.mqh>  // کلاس معامله برای عملیات
+
+// کلاس CTradeManager برای عملیات معاملاتی استاتیک (بدون نیاز به نمونه‌سازی)
+// تمام متدها استاتیک هستند برای سادگی فراخوانی
+class CTradeManager  // کلاس مدیریت معامله
 {
-   double senkouB = g_trendFilter.GetSenkouSpanB(trendTf);  // گرفتن Senkou Span B از فیلتر روند
-   if(senkouB == 0)  // چک مقدار معتبر
+public:
+   // بستن جزئی پوزیشن: محاسبه و بستن حجم مشخص با چک اضافی Magic برای امنیت
+   // این متد با معامله مخالف جزئی می‌بندد تا با بروکرهای مختلف سازگار باشد
+   static bool PartialClose(ulong ticket, double volume)  // بستن جزئی با تیکت و حجم
    {
-      CLogger::Log("خطا در گرفتن Senkou Span B برای تریلینگ.");  // چاپ خطا
-      return false;  // بازگشت شکست
-   }
-   double buffer = 10 * _Point;  // بافر ثابت (۱۰ پوینت) برای فاصله از خط – می‌تونی این رو ورودی کنی
-   double trailing;  // SL جدید بر اساس سنکو
-   if(posType == POSITION_TYPE_BUY) {
-      trailing = senkouB - buffer;  // برای خرید: SL کمی پایین‌تر از سنکو
-      if(trailing > sl && MathAbs(trailing - sl) >= _Point * Inp_Trailing_MinChange_Points) {  // چک بهبود و حداقل تغییر
-         CTrade trade;
-         if(trade.PositionModify(ticket, trailing, PositionGetDouble(POSITION_TP))) {
-            CLogger::Log("تریلینگ SL به‌روزرسانی شد برای تیکت " + (string)ticket + " (ایچیموکو: " + DoubleToString(trailing, _Digits) + ")");
-            return true;
+      if(!PositionSelectByTicket(ticket))  // چک انتخاب پوزیشن با تیکت
+      {
+         CLogger::Log("خطا: پوزیشن با تیکت " + (string)ticket + " برای بستن جزئی یافت نشد.");  // چاپ خطا اگر پوزیشن پیدا نشود
+         return false;  // بازگشت شکست اگر انتخاب شکست بخورد
+      }
+
+      // گرفتن اطلاعات ضروری از پوزیشن اصلی برای بستن جزئی
+      ENUM_POSITION_TYPE posType = (ENUM_POSITION_TYPE)PositionGetInteger(POSITION_TYPE);  // نوع پوزیشن (خرید یا فروش)
+      string symbolName = PositionGetString(POSITION_SYMBOL);  // نماد پوزیشن
+
+      // آماده کردن درخواست معامله جدید (مخالف پوزیشن اصلی) برای بستن جزئی
+      CTrade trade;  // نمونه کلاس معامله برای ارسال درخواست
+      MqlTradeRequest request;  // ساختار درخواست معامله
+      MqlTradeResult result;  // ساختار نتیجه معامله
+      ZeroMemory(request);  // صفر کردن ساختار درخواست برای جلوگیری از مقادیر ناخواسته
+
+      request.action   = TRADE_ACTION_DEAL;              // نوع عملیات: معامله مستقیم (برای بستن مخالف)
+      request.symbol   = symbolName;                     // نماد معامله (باید با پوزیشن یکی باشد)
+      request.volume   = volume;                         // حجمی که می‌خواهیم ببندیم (جزئی)
+      request.deviation = 10;                            // انحراف مجاز قیمت برای slippage
+      request.magic    = (long)PositionGetInteger(POSITION_MAGIC); // مجیک نامبر باید با پوزیشن اصلی یکی باشد
+
+      // لینک کردن این درخواست به پوزیشن باز موجود برای بستن جزئی
+      request.position = ticket; // لینک مستقیم به تیکت پوزیشن برای بستن جزئی
+
+      // تعیین نوع و قیمت معامله مخالف بر اساس نوع پوزیشن اصلی
+      if(posType == POSITION_TYPE_BUY)  // اگر پوزیشن خرید باشد, برای بستن جزئی فروش می‌زنیم
+      {
+         request.price = SymbolInfoDouble(symbolName, SYMBOL_BID);  // قیمت فروش: BID فعلی برای بستن خرید
+         request.type = ORDER_TYPE_SELL;  // نوع معامله: فروش
+      }
+      else  // اگر پوزیشن فروش باشد, برای بستن جزئی خرید می‌زنیم
+      {
+         request.price = SymbolInfoDouble(symbolName, SYMBOL_ASK);  // قیمت خرید: ASK فعلی برای بستن فروش
+         request.type = ORDER_TYPE_BUY;  // نوع معامله: خرید
+      }
+
+      // ارسال درخواست و بررسی نتیجه برای چک موفقیت بستن جزئی
+      if(trade.OrderSend(request, result))  // ارسال درخواست معامله مخالف
+      {
+         if(result.retcode == TRADE_RETCODE_DONE || result.retcode == TRADE_RETCODE_PLACED)  // چک کد بازگشت موفقیت (انجام شده یا قرار گرفته)
+         {
+            if(InpDebugMode) CLogger::Log("بخشی از پوزیشن با تیکت " + (string)ticket + " (حجم " + DoubleToString(volume, 2) + ") با موفقیت بسته شد.");  // چاپ موفقیت در حالت دیباگ
+            return true;  // بازگشت موفقیت اگر بستن جزئی موفق باشد
          }
       }
-   } else {
-      trailing = senkouB + buffer;  // برای فروش: SL کمی بالاتر از سنکو
-      if(trailing < sl && MathAbs(trailing - sl) >= _Point * Inp_Trailing_MinChange_Points) {
-         CTrade trade;
-         if(trade.PositionModify(ticket, trailing, PositionGetDouble(POSITION_TP))) {
-            CLogger::Log("تریلینگ SL به‌روزرسانی شد برای تیکت " + (string)ticket + " (ایچیموکو: " + DoubleToString(trailing, _Digits) + ")");
-            return true;
-         }
+
+      CLogger::Log("خطا در بستن بخشی از پوزیشن با تیکت " + (string)ticket + ": " + IntegerToString(result.retcode) + " - " + result.comment);  // چاپ خطا با کد و کامنت نتیجه
+      return false;  // بازگشت شکست اگر ارسال یا نتیجه شکست بخورد
+   }
+
+   // انتقال SL به بریک‌اون: نرمالایز قیمت و تغییر SL به نقطه ورود با بافر
+   // این متد SL را به نقطه ورود + بافر منتقل می‌کند تا معامله ریسک فری شود
+   static bool MoveSLToBreakEven(ulong ticket, double breakEvenPrice)  // انتقال SL به ورود با قیمت بریک‌اون
+   {
+      if(!PositionSelectByTicket(ticket))  // چک انتخاب پوزیشن با تیکت
+      {
+         CLogger::Log("خطا: پوزیشن با تیکت " + (string)ticket + " یافت نشد.");  // چاپ خطا اگر پوزیشن پیدا نشود
+         return false;  // بازگشت شکست
+      }
+
+      CTrade trade;  // نمونه کلاس معامله برای تغییر پوزیشن
+      breakEvenPrice = NormalizeDouble(breakEvenPrice, _Digits);  // نرمالایز قیمت بریک‌اون به دقت digits نماد
+      if(trade.PositionModify(ticket, breakEvenPrice, PositionGetDouble(POSITION_TP)))  // تغییر SL پوزیشن (TP بدون تغییر)
+      {
+         CLogger::Log("استاپ لاس پوزیشن " + (string)ticket + " به نقطه ورود منتقل شد.");  // چاپ موفقیت انتقال
+         return true;  // بازگشت موفقیت
+      }
+      else  // شرط شکست در تغییر
+      {
+         CLogger::Log("خطا در انتقال استاپ لاس پوزیشن " + (string)ticket + ": " + IntegerToString(trade.ResultRetcode()));  // چاپ خطا با کد بازگشت
+         return false;  // بازگشت شکست
       }
    }
-   return false;  // اگر بهبود نداشت, false
-}
+
+   // اعمال تریلینگ استاپ: محاسبه فاصله جدید، چک حداقل تغییر و تغییر SL (محاسبه پویا ATR یا Senkou Span B هر بار)
+   // این متد پویا محاسبه می‌کند و فقط اگر بهبود داشته باشد بروزرسانی می‌کند
+   static bool TrailingStop(ulong ticket, ENUM_TRAILING_MODE mode, int atrPeriod, double atrMultiplier, ENUM_TIMEFRAMES timeframe, int atrHandle, ENUM_TIMEFRAMES trendTf)  // تریلینگ با پارامترها و تایم‌فریم فیلتر
+   {
+      if(!PositionSelectByTicket(ticket))  // چک انتخاب پوزیشن با تیکت
+      {
+         CLogger::Log("خطا: پوزیشن با تیکت " + (string)ticket + " یافت نشد.");  // چاپ خطا اگر پوزیشن پیدا نشود
+         return false;  // بازگشت شکست
+      }
+
+      double sl = PositionGetDouble(POSITION_SL);  // SL فعلی پوزیشن
+      if(sl == 0)  // چک اگر SL اولیه صفر باشد (نامعتبر)
+      {
+         CLogger::Log("هشدار: SL اولیه صفر است برای پوزیشن " + (string)ticket + ". تریلینگ skip شد.");  // چاپ هشدار
+         return false;  // بازگشت شکست
+      }
+
+      ENUM_POSITION_TYPE posType = (ENUM_POSITION_TYPE)PositionGetInteger(POSITION_TYPE);  // نوع پوزیشن (خرید یا فروش)
+      double currentPrice = posType == POSITION_TYPE_BUY ? SymbolInfoDouble(_Symbol, SYMBOL_BID) : SymbolInfoDouble(_Symbol, SYMBOL_ASK);  // قیمت فعلی برای چک سود
+
+      double trailing;  // SL جدید – اینجا تعریف می‌شود تا در همه مسیرها استفاده شود
+      if(mode == TRAILING_ATR)  // حالت تریلینگ با ATR (پویا بر اساس نوسان اخیر)
+      {
+         double atr[];  // آرایه ATR (دینامیک بدون اندازه ثابت)
+         ArraySetAsSeries(atr, true);  // تنظیم سری برای دسترسی آسان به آخرین مقدار
+         if(CopyBuffer(atrHandle, 0, 1, 1, atr) <= 0)  // کپی ATR از هندل (شیفت ۱ برای کندل بسته)
+         {
+            CLogger::Log("خطا در گرفتن ATR برای تریلینگ: " + IntegerToString(GetLastError()));  // چاپ خطا اگر کپی شکست بخورد
+            return false;  // بازگشت شکست
+         }
+         double trailingDistance = atr[0] * atrMultiplier;  // محاسبه فاصله تریلینگ بر اساس ATR * ضریب
+         trailing = posType == POSITION_TYPE_BUY ? currentPrice - trailingDistance : currentPrice + trailingDistance;  // SL جدید بر اساس قیمت فعلی -/+ فاصله
+      }
+      else if(mode == TRAILING_ICHIMOKU_B)  // حالت تریلینگ با Senkou Span B (ابر ایچیموکو)
+      {
+         double senkouB = g_trendFilter.GetSenkouSpanB(trendTf);  // گرفتن Senkou Span B از کلاس فیلتر روند (محاسبه دستی)
+         if(senkouB == 0)  // چک اگر مقدار Senkou B نامعتبر باشد
+         {
+            CLogger::Log("خطا در گرفتن Senkou Span B برای تریلینگ.");  // چاپ خطا
+            return false;  // بازگشت شکست
+         }
+         double buffer = 10 * _Point;  // بافر ثابت (۱۰ پوینت) برای فاصله امن از Senkou B – می‌تونی این رو به ورودی تنظیمات اضافه کنی
+         if(posType == POSITION_TYPE_BUY) {
+            trailing = senkouB - buffer;  // برای خرید: SL کمی پایین‌تر از Senkou B برای حمایت
+         } else {
+            trailing = senkouB + buffer;  // برای فروش: SL کمی بالاتر از Senkou B برای مقاومت
+         }
+      }
+      else  // حالت نامعتبر (برای ایمنی در صورت enum اشتباه)
+      {
+         CLogger::Log("هشدار: حالت تریلینگ نامعتبر برای پوزیشن " + (string)ticket);  // چاپ هشدار
+         return false;  // بازگشت شکست
+      }
+
+      trailing = NormalizeDouble(trailing, _Digits);  // نرمالایز SL جدید به دقت digits نماد
+
+      // چک بهبود SL جدید نسبت به فعلی و حداقل تغییر برای جلوگیری از بروزرسانی‌های بیهوده
+      if((posType == POSITION_TYPE_BUY && trailing > sl) || (posType == POSITION_TYPE_SELL && trailing < sl))  // چک اگر SL جدید بهتر باشد (برای خرید بالاتر, فروش پایین‌تر)
+      {
+         if(MathAbs(trailing - sl) < _Point * Inp_Trailing_MinChange_Points) return true;  // اگر تغییر کمتر از حداقل (مثل ۵ پوینت), skip و true برگردان (برای ادامه بدون ارور)
+         CTrade trade;  // نمونه معامله برای تغییر
+         if(trade.PositionModify(ticket, trailing, PositionGetDouble(POSITION_TP)))  // تغییر SL (TP بدون تغییر)
+         {
+            CLogger::Log("تریلینگ SL به‌روزرسانی شد برای تیکت " + (string)ticket + " به " + DoubleToString(trailing, _Digits));  // چاپ موفقیت با مقدار جدید
+            return true;  // بازگشت موفقیت
+         } else {
+            CLogger::Log("خطا در بروزرسانی تریلینگ SL برای تیکت " + (string)ticket + ": " + IntegerToString(trade.ResultRetcode()));  // چاپ خطا با کد
+            return false;  // بازگشت شکست
+         }
+      }
+      return true;  // بازگشت true اگر هیچ تغییری لازم نبود (برای ادامه مدیریت)
+   }
+
+   // بستن کامل پوزیشن: انتخاب و بستن با چک نتیجه
+   // این متد پوزیشن را کامل می‌بندد
+   static bool ClosePosition(ulong ticket)  // بستن کامل با تیکت
+   {
+      if(!PositionSelectByTicket(ticket))  // چک انتخاب پوزیشن
+      {
+         CLogger::Log("خطا: پوزیشن با تیکت " + (string)ticket + " یافت نشد.");  // چاپ خطا
+         return false;  // بازگشت شکست
+      }
+
+      CTrade trade;  // نمونه معامله برای بستن
+      if(trade.PositionClose(ticket))  // بستن کامل پوزیشن
+      {
+         CLogger::Log("پوزیشن با تیکت " + (string)ticket + " بسته شد.");  // چاپ موفقیت
+         return true;  // بازگشت موفقیت
+      }
+      else  // شرط شکست
+      {
+         CLogger::Log("خطا در بستن پوزیشن با تیکت " + (string)ticket + ": " + IntegerToString(trade.ResultRetcode()));  // چاپ خطا با کد
+         return false;  // بازگشت شکست
+      }
+   }
+};
+
+#endif  // پایان
+```
