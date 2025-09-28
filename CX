@@ -1,0 +1,1037 @@
+//+------------------------------------------------------------------+
+//|                                                          X- Hipo |
+//|                             Copyright 2000-2025, MetaQuotes Ltd. |
+//|                                             https://www.mql5.com |
+//+------------------------------------------------------------------+
+#property copyright "Copyright 2025, HIPOALGORITM Ltd."
+#property link      "HIPOALGORITM"
+#property version   "1.0.14 "
+#property description "Xhipo-EA"
+#include <Trade/Trade.mqh>
+#include "XhipoEA_Library.mqh"
+//#include "LicenseSystem.mqh"
+CTrade               trade;
+CPositionInfo        posInfo;
+COrderInfo           ordInfo;
+
+enum ENUM_STATE
+  {
+   STATE_RANGE = 0,     // Range market
+   STATE_BREAKOUT = 1,  // Breakout occurred, waiting for pullback
+   STATE_TREND = 2      // Trending market
+  };
+
+enum ENUM_RANGE_FILTER_TYPE
+  {
+   FILTER_OFF = 0,         // No filter
+   FILTER_BOLLINGER = 1,   // Bollinger Bands
+   FILTER_STRUCTURAL = 2   // Structural
+  };
+input group "===== Xhipo-EA V 1.0.14 ====="
+input group "===== Capital Management ====="
+input double RiskPercent = 0.75;         // Risk Percentage %
+input int    Tppoints     = 2000;           // Take Profit (0 = dynamic with 1.5 * ATR)
+input int    Slpoints     = 35;         // Stop Loss
+input int    TslTriggerPoints = 11;       // Trailing Stop Trigger (Step One)
+input int    TslPoints    = 10;           // Trailing Stop Step
+
+input group "===== Main Trading Settings ====="
+input ENUM_TIMEFRAMES Timeframe = PERIOD_M12; // Timeframe (SET: 12M)
+input int    BarsN        = 3;             //MUME BASE CANDELL
+input int    BersX        =   750;
+input   int    ExpirationBars = 25;       // Order Expiration (bars, default: 100)
+input int    OrderDistPoints = 100;       // Order Distance from Level (default: 100 points)
+
+input int    InpMagic     = 805601;      // Magic Number
+
+
+string TradeComment = "X-HipoAlgoritm ("+_Symbol+")"; // Trade Comment
+
+input group "===== Range Filter Selection ====="
+input ENUM_RANGE_FILTER_TYPE RangeFilterType = FILTER_BOLLINGER; // Range Filter Type (default: Bollinger)
+
+input group "===== Bollinger Bands Settings ====="
+input double BBWidthMultiplier = 0.36;    // Band Width Multiplier (default: 0.3)
+input  int    BBPeriod          = 21;     // Bollinger Period (default: 10)
+input  double BBDeviation       = 1.9;    // Bollinger Deviation (default: 2.0)
+input  int    BBLookback        = 61;     // Lookback Period (default: 50)
+input  int    BBMinRangeCandles = 7;      // Min Range Candles (default: 5)
+input  double BBMaxATR          = 7.0;    // Max ATR for Range (default: 8 pips)
+
+input group "===== Structural Filter Settings ====="
+input  int    RangeLookback     = 10;     // Lookback Period (default: 10)
+input double RangeThresholdMultiplier = 0.15; // Range Threshold Multiplier (default: 0.15)
+input  int    MinRangeCandles   = 15;     // Min Range Candles (default: 15)
+
+input  group "===== Pullback Settings ====="
+input int    MaxPullbackBars   = 7;      // Max Pullback Bars (default: 6)
+input  int    PullbackDistance  = 10;     // Pullback Distance (default: 10 points)
+
+input group "===== RTrading Time Filter ====="
+enum StartHour {Inactive=0, _0100=1, _0200=2, _0300=3, _0400=4, _0500=5, _0600=6, _0700=7, _0800=8, _0900=9, _1000=10, _1100=11, _1200=12, _1300=13, _1400=14, _1500=15, _1600=16, _1700=17, _1800=18, _1900=19, _2000=20, _2100=21, _2200=22, _2300=23};
+input StartHour SHInput = 9;      // Trading Start Hour
+input StartHour EHInput = 18;      // Trading End Hour
+input group "===== RTrading Day Filter ====="
+input bool              AllowedMonday       =  true;//Monday
+input bool              AllowedTuesday      =  true;//Tuesday
+input bool              AllowedWednesday    =  true;//wednesday
+input bool              AllowedThursday     =  true;//Thursday
+input bool              AllowedFriday       =  true;//Friday
+input bool              AllowedSeturday     =  false;//Saturday_( for crypto)
+input bool              Allowedsunday       =  false;//Sunday_( for crypto)
+input   bool              DayFilterOn       =  false;//on/off filter
+
+
+
+input group "***** Filter News *****"
+input bool       NewsFilterOn     = false;                              // News Filter Enabled
+enum sep_dropdown { comma = 0, semicolon = 1 };                        //Separator Type
+input sep_dropdown separator      = 0;
+input string     KayNews          = "BCB,NFP,JOLTS,Nonfarm,PMI,Retail,GDP,Confidence,Interest Rate"; // Keyword News
+input string     NewsCurrencies   = "USD";                 //
+input int        DaysNewsLookup   = 100;                               //
+input int        StopBeforeMin    = 15;                                // Stop before news by minute
+input int        StartTradingMin  = 15;                                // Stop after news by minute
+bool             TrDisabledNews   = false;                             // on/off filter news
+
+
+
+ushort     sep_code;
+string     Newstoavoid[];
+datetime   LastNewsAvoided;
+int SYSO=0;
+bool        HideIndicators       =  true;
+
+
+int SHChoice, EHChoice;
+ENUM_STATE state = STATE_TREND;
+double rangeHigh = 0, rangeLow = 0;
+datetime breakoutTime = 0;
+int atrHandle;
+string   TradingEnabledComm   = "";
+int OnInit()
+  {
+//OnInitLicense();
+   trade.SetExpertMagicNumber(InpMagic);
+   SHChoice = SHInput;
+   EHChoice = EHInput;
+   if(HideIndicators)
+      TesterHideIndicators(true); // مخفی کردن اندیکاتورها در تست
+
+   ChartSetInteger(0, CHART_SHOW_GRID, false);
+   ChartSetInteger(0,CHART_COLOR_STOP_LEVEL,clrGold);
+
+   ChartSetInteger(0,CHART_WINDOW_HANDLE,iChaikin(_Symbol,PERIOD_CURRENT,21,52,MODE_EMA,VOLUME_TICK));
+   atrHandle = iATR(_Symbol, Timeframe, 14);
+   if(atrHandle == INVALID_HANDLE)
+     {
+      Print("Failed to initialize ATR handle");
+      return(INIT_FAILED);
+     }
+
+   CreatePanel(); // ایجاد پنل
+   EventSetMillisecondTimer(500); // آپدیت هر ۰.۵ ثانیه
+
+
+
+   return(INIT_SUCCEEDED);
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+void OnDeinit(const int reason)
+  {
+ //OnDeinitLicense(reason);
+  
+   ObjectsDeleteAll(0, "XhipoEA_*"); // حذف اشیاء
+   EventKillTimer(); // توقف تایمر
+
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+void OnTick()
+  {
+  //OnTickLicense();
+   UpdatePanel(); // آپدیت پنل
+   TrailStop();
+   if(!IsNewBar())
+      return;
+// بررسی فیلترها و غیرفعال کردن معاملات در صورت لزوم
+   if(IsUpcomingNews() || !IsTradingAllowedbyDay())
+     {
+      CloseAllOrders();
+
+      ChartSetInteger(0, CHART_COLOR_BACKGROUND, clrBlack);
+      if(TradingEnabledComm != "printed")
+        {
+         Print(_Symbol, ": ", TradingEnabledComm);
+         TradingEnabledComm = "printed";
+        }
+      return;
+     }
+
+   MqlDateTime time;
+   TimeToStruct(TimeCurrent(), time);
+   int Hournow = time.hour;
+   if(SHChoice != Inactive && Hournow < SHChoice)
+     {
+      CloseAllOrders();
+      return;
+     }
+   if(EHChoice != Inactive && Hournow >= EHChoice)
+     {
+      CloseAllOrders();
+      return;
+     }
+
+   if(RangeFilterType == FILTER_BOLLINGER)
+     {
+      if(isMarketRangeBollinger())
+        {
+         state = STATE_RANGE;
+         DrawRangeZone("BB");
+        }
+      else
+         if(state == STATE_RANGE && isBreakoutBollinger())
+           {
+            state = STATE_BREAKOUT;
+            breakoutTime = iTime(_Symbol, Timeframe, 0);
+            DrawBreakout("BB");
+           }
+         else
+            if(state == STATE_BREAKOUT && BarsSinceBreakout() <= MaxPullbackBars)
+              {
+               if(checkPullbackBollinger())
+                 {
+                  ExecutePullbackTrade("BB");
+                  state = STATE_TREND;
+                 }
+              }
+            else
+              {
+               state = STATE_TREND;
+               rangeHigh = 0;
+               rangeLow = 0;
+              }
+     }
+   else
+      if(RangeFilterType == FILTER_STRUCTURAL)
+        {
+         if(isMarketRangeStructural())
+           {
+            state = STATE_RANGE;
+            DrawRangeZone("Struct");
+           }
+         else
+            if(state == STATE_RANGE && isBreakoutStructural())
+              {
+               state = STATE_BREAKOUT;
+               breakoutTime = iTime(_Symbol, Timeframe, 0);
+               DrawBreakout("Struct");
+              }
+            else
+               if(state == STATE_BREAKOUT && BarsSinceBreakout() <= MaxPullbackBars)
+                 {
+                  if(checkPullbackStructural())
+                    {
+                     ExecutePullbackTrade("Struct");
+                     state = STATE_TREND;
+                    }
+                 }
+               else
+                 {
+                  state = STATE_TREND;
+                  rangeHigh = 0;
+                  rangeLow = 0;
+                 }
+        }
+      else
+        {
+         state = STATE_TREND;
+        }
+
+   if(state == STATE_TREND)
+     {
+      int BuyTotal = 0, SellTotal = 0;
+      for(int i = OrdersTotal() - 1; i >= 0; i--)
+        {
+         ordInfo.SelectByIndex(i);
+         if(ordInfo.Symbol() == _Symbol && ordInfo.Magic() == InpMagic)
+           {
+            if(ordInfo.OrderType() == ORDER_TYPE_BUY_STOP)
+               BuyTotal++;
+            if(ordInfo.OrderType() == ORDER_TYPE_SELL_STOP)
+               SellTotal++;
+           }
+        }
+      for(int i = PositionsTotal() - 1; i >= 0; i--)
+        {
+         posInfo.SelectByIndex(i);
+         if(posInfo.Symbol() == _Symbol && posInfo.Magic() == InpMagic)
+           {
+            if(posInfo.PositionType() == POSITION_TYPE_BUY)
+               BuyTotal++;
+            if(posInfo.PositionType() == POSITION_TYPE_SELL)
+               SellTotal++;
+           }
+        }
+
+      if(BuyTotal <= 0)
+        {
+         double high = findHigh();
+         if(high > 0)
+           {
+            executeBuy(high);
+            DrawTrendLevel("High", high);
+           }
+        }
+      if(SellTotal <= 0)
+        {
+         double low = findLow();
+         if(low > 0)
+           {
+            executeSell(low);
+            DrawTrendLevel("Low", low);
+           }
+        }
+     }
+
+
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+bool isMarketRangeBollinger()
+  {
+   double bbUpper[], bbLower[], atr[];
+   ArraySetAsSeries(bbUpper, true);
+   ArraySetAsSeries(bbLower, true);
+   ArraySetAsSeries(atr, true);
+   int bbHandle = iBands(_Symbol, Timeframe, BBPeriod, 0, BBDeviation, PRICE_CLOSE);
+   if(bbHandle == INVALID_HANDLE)
+      return false;
+   CopyBuffer(bbHandle, 1, 0, BBLookback, bbUpper);
+   CopyBuffer(bbHandle, 2, 0, BBLookback, bbLower);
+   CopyBuffer(atrHandle, 0, 0, 1, atr);
+
+   double bbWidth = bbUpper[0] - bbLower[0];
+   double avgWidth = 0;
+   int rangeCandles = 0;
+   for(int i = 0; i < BBLookback; i++)
+     {
+      double width = bbUpper[i] - bbLower[i];
+      avgWidth += width;
+      if(width < BBWidthMultiplier * (avgWidth / (i + 1)))
+         rangeCandles++;
+     }
+   avgWidth /= BBLookback;
+
+   if(bbWidth < BBWidthMultiplier * avgWidth && rangeCandles >= BBMinRangeCandles && atr[0] < BBMaxATR * _Point)
+     {
+      rangeHigh = bbUpper[0];
+      rangeLow = bbLower[0];
+      Print("Range Detected (BB): High=", rangeHigh, ", Low=", rangeLow);
+      return true;
+     }
+   return false;
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+bool isMarketRangeStructural()
+  {
+   double highestHigh = 0, lowestLow = DBL_MAX, candleRanges[];
+   ArrayResize(candleRanges, RangeLookback);
+   ArraySetAsSeries(candleRanges, true);
+
+   for(int i = 0; i < RangeLookback; i++)
+     {
+      double high = iHigh(_Symbol, Timeframe, i);
+      double low = iLow(_Symbol, Timeframe, i);
+      candleRanges[i] = high - low;
+      highestHigh = MathMax(high, highestHigh);
+      lowestLow = MathMin(low, lowestLow);
+     }
+
+   double avgCandleRange = 0;
+   for(int i = 0; i < RangeLookback; i++)
+      avgCandleRange += candleRanges[i];
+   avgCandleRange /= RangeLookback;
+
+   int consecutiveSmallCandles = 0;
+   for(int i = 0; i < RangeLookback; i++)
+     {
+      if(candleRanges[i] < avgCandleRange * RangeThresholdMultiplier)
+         consecutiveSmallCandles++;
+      else
+         consecutiveSmallCandles = 0;
+      if(consecutiveSmallCandles >= MinRangeCandles)
+         break;
+     }
+
+   double range = highestHigh - lowestLow;
+   if(range < avgCandleRange * RangeThresholdMultiplier * RangeLookback && consecutiveSmallCandles >= MinRangeCandles)
+     {
+      rangeHigh = highestHigh;
+      rangeLow = lowestLow;
+      Print("Range Detected (Struct): High=", rangeHigh, ", Low=", rangeLow);
+      return true;
+     }
+   return false;
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+bool isBreakoutBollinger()
+  {
+   double close1 = iClose(_Symbol, Timeframe, 1);
+   double close2 = iClose(_Symbol, Timeframe, 2);
+   double open0 = iOpen(_Symbol, Timeframe, 0);
+   double volume1 = (double)iVolume(_Symbol, Timeframe, 1);
+   double avgVolume[];
+   ArraySetAsSeries(avgVolume, true);
+   int maHandle = iMA(_Symbol, Timeframe, 20, 0, MODE_SMA, PRICE_CLOSE);
+   if(maHandle == INVALID_HANDLE)
+      return false;
+   CopyBuffer(maHandle, 0, 1, 1, avgVolume);
+
+   if(close2 > rangeHigh && close1 > rangeHigh && open0 > rangeHigh && volume1 > 2.0 * avgVolume[0])
+     {
+      Print("Breakout Up (BB): Close=", close1, ", Volume=", volume1);
+      return true;
+     }
+   if(close2 < rangeLow && close1 < rangeLow && open0 < rangeLow && volume1 > 2.0 * avgVolume[0])
+     {
+      Print("Breakout Down (BB): Close=", close1, ", Volume=", volume1);
+      return true;
+     }
+   return false;
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+bool isBreakoutStructural()
+  {
+   double close1 = iClose(_Symbol, Timeframe, 1);
+   double close2 = iClose(_Symbol, Timeframe, 2);
+   double open0 = iOpen(_Symbol, Timeframe, 0);
+   double volume1 = (double)iVolume(_Symbol, Timeframe, 1);
+   double avgVolume[];
+   ArraySetAsSeries(avgVolume, true);
+   int maHandle = iMA(_Symbol, Timeframe, 20, 0, MODE_SMA, PRICE_CLOSE);
+   if(maHandle == INVALID_HANDLE)
+      return false;
+   CopyBuffer(maHandle, 0, 1, 1, avgVolume);
+
+   if(close2 > rangeHigh && close1 > rangeHigh && open0 > rangeHigh && volume1 > 2.0 * avgVolume[0])
+     {
+      Print("Breakout Up (Struct): Close=", close1, ", Volume=", volume1);
+      return true;
+     }
+   if(close2 < rangeLow && close1 < rangeLow && open0 < rangeLow && volume1 > 2.0 * avgVolume[0])
+     {
+      Print("Breakout Down (Struct): Close=", close1, ", Volume=", volume1);
+      return true;
+     }
+   return false;
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+bool checkPullbackBollinger()
+  {
+   double close = iClose(_Symbol, Timeframe, 0);
+   double open = iOpen(_Symbol, Timeframe, 0);
+   double high = iHigh(_Symbol, Timeframe, 0);
+   double low = iLow(_Symbol, Timeframe, 0);
+   double prevClose = iClose(_Symbol, Timeframe, 1);
+   double prevOpen = iOpen(_Symbol, Timeframe, 1);
+   double body = MathAbs(close - open);
+   double range = high - low;
+
+   if(close > rangeHigh)
+     {
+      if(low <= rangeHigh && high <= rangeHigh + PullbackDistance * _Point)
+        {
+         if(isPinBar(high, low, open, close, 1) || isEngulfing(close, open, prevClose, prevOpen) || isDoji(body, range))
+           {
+            Print("Pullback Up (BB): Close=", close, ", Low=", low);
+            DrawPullbackPattern("BB");
+            return true;
+           }
+        }
+     }
+   else
+      if(close < rangeLow)
+        {
+         if(high >= rangeLow && low >= rangeLow - PullbackDistance * _Point)
+           {
+            if(isPinBar(high, low, open, close, -1) || isEngulfing(close, open, prevClose, prevOpen) || isDoji(body, range))
+              {
+               Print("Pullback Down (BB): Close=", close, ", High=", high);
+               DrawPullbackPattern("BB");
+               return true;
+              }
+           }
+        }
+   return false;
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+bool checkPullbackStructural()
+  {
+   double close = iClose(_Symbol, Timeframe, 0);
+   double open = iOpen(_Symbol, Timeframe, 0);
+   double high = iHigh(_Symbol, Timeframe, 0);
+   double low = iLow(_Symbol, Timeframe, 0);
+   double prevClose = iClose(_Symbol, Timeframe, 1);
+   double prevOpen = iOpen(_Symbol, Timeframe, 1);
+   double body = MathAbs(close - open);
+   double range = high - low;
+
+   if(close > rangeHigh)
+     {
+      if(low <= rangeHigh && high <= rangeHigh + PullbackDistance * _Point)
+        {
+         if(isPinBar(high, low, open, close, 1) || isEngulfing(close, open, prevClose, prevOpen) || isDoji(body, range))
+           {
+            Print("Pullback Up (Struct): Close=", close, ", Low=", low);
+            DrawPullbackPattern("Struct");
+            return true;
+           }
+        }
+     }
+   else
+      if(close < rangeLow)
+        {
+         if(high >= rangeLow && low >= rangeLow - PullbackDistance * _Point)
+           {
+            if(isPinBar(high, low, open, close, -1) || isEngulfing(close, open, prevClose, prevOpen) || isDoji(body, range))
+              {
+               Print("Pullback Down (Struct): Close=", close, ", High=", high);
+               DrawPullbackPattern("Struct");
+               return true;
+              }
+           }
+        }
+   return false;
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+bool isPinBar(double high, double low, double open, double close, int direction)
+  {
+   double body = MathAbs(close - open);
+   double upperShadow = high - MathMax(open, close);
+   double lowerShadow = MathMin(open, close) - low;
+   if(direction == 1 && lowerShadow > 1.2 * body && upperShadow < body)
+      return true;
+   if(direction == -1 && upperShadow > 1.2 * body && lowerShadow < body)
+      return true;
+   return false;
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+bool isEngulfing(double close, double open, double prevClose, double prevOpen)
+  {
+   double body = MathAbs(close - open);
+   double prevBody = MathAbs(prevClose - prevOpen);
+   if(close > open && prevClose < prevOpen && body > 0.5 * prevBody && close > prevOpen)
+      return true;
+   if(close < open && prevClose > prevOpen && body > 0.5 * prevBody && close < prevOpen)
+      return true;
+   return false;
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+bool isDoji(double body, double range)
+  {
+   return body < 0.2 * range;
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+double findHigh()
+  {
+   for(int i = BarsN; i < BersX && i < iBars(_Symbol, Timeframe); i++)
+     {
+      if(iHighest(_Symbol, Timeframe, MODE_HIGH, BarsN * 2 + 1, i - BarsN) == i)
+        {
+         double high = iHigh(_Symbol, Timeframe, i);
+         //Print("Found High Break: ", high, " at bar ", i);
+         return high;
+
+        }
+     }
+   return -1;
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+double findLow()
+  {
+   for(int i = BarsN; i < BersX && i < iBars(_Symbol, Timeframe); i++)
+     {
+      if(iLowest(_Symbol, Timeframe, MODE_LOW, BarsN * 2 + 1, i - BarsN) == i)
+        {
+         double low = iLow(_Symbol, Timeframe, i);
+         //Print("Found Low Break: ", low, " at bar ", i);
+         return low;
+        }
+     }
+   return -1;
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+void executeBuy(double entry)
+  {
+   double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+   if(ask > entry - OrderDistPoints * _Point)
+      return;
+
+   double atr[];
+   CopyBuffer(atrHandle, 0, 0, 1, atr);
+   double tp = (Tppoints == 0) ? entry + 1.5 * atr[0] : entry + Tppoints * _Point;
+   double sl = entry - Slpoints * _Point;
+   double lots = calcLots(entry - sl);
+
+   datetime expiration = iTime(_Symbol, Timeframe, 0) + ExpirationBars * PeriodSeconds(Timeframe);
+   if(trade.BuyStop(lots, entry, _Symbol, sl, tp, ORDER_TIME_SPECIFIED, expiration, TradeComment))
+      Print("Buy Stop Placed: Entry=", entry, ", SL=", sl, ", TP=", tp, ", Lots=", lots);
+   else
+      Print("Buy Stop Failed: Error=", GetLastError());
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+void executeSell(double entry)
+  {
+   double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   if(bid < entry + OrderDistPoints * _Point)
+      return;
+
+   double atr[];
+   CopyBuffer(atrHandle, 0, 0, 1, atr);
+   double tp = (Tppoints == 0) ? entry - 1.5 * atr[0] : entry - Tppoints * _Point;
+   double sl = entry + Slpoints * _Point;
+   double lots = calcLots(sl - entry);
+
+   datetime expiration = iTime(_Symbol, Timeframe, 0) + ExpirationBars * PeriodSeconds(Timeframe);
+   if(trade.SellStop(lots, entry, _Symbol, sl, tp, ORDER_TIME_SPECIFIED, expiration, TradeComment))
+      Print("Sell Stop Placed: Entry=", entry, ", SL=", sl, ", TP=", tp, ", Lots=", lots);
+   else
+      Print("Sell Stop Failed: Error=", GetLastError());
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+void ExecutePullbackTrade(string type)
+  {
+   double close = iClose(_Symbol, Timeframe, 0);
+   if(close > rangeHigh)
+     {
+      double entry = rangeHigh + OrderDistPoints * _Point;
+      executeBuy(entry);
+      DrawOrderLine("BuyStop_" + type, entry, clrGreen);
+     }
+   else
+      if(close < rangeLow)
+        {
+         double entry = rangeLow - OrderDistPoints * _Point;
+         executeSell(entry);
+         DrawOrderLine("SellStop_" + type, entry, clrRed);
+        }
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+double calcLots(double slDistance)
+  {
+   double risk = AccountInfoDouble(ACCOUNT_BALANCE) * RiskPercent / 100.0;
+   double tickSize = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);
+   double tickValue = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);
+   double lotStep = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP);
+   double moneyPerLotStep = MathAbs(slDistance) / tickSize * tickValue * lotStep;
+   double lots = MathFloor(risk / moneyPerLotStep) * lotStep;
+
+   double minVolume = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
+   double maxVolume = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MAX);
+   lots = MathMax(minVolume, MathMin(maxVolume, lots));
+   return NormalizeDouble(lots, 2);
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+bool IsNewBar()
+  {
+   static datetime previousTime = 0;
+   datetime currentTime = iTime(_Symbol, Timeframe, 0);
+   if(previousTime != currentTime)
+     {
+      previousTime = currentTime;
+      return true;
+     }
+   return false;
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+int BarsSinceBreakout()
+  {
+   return iBarShift(_Symbol, Timeframe, breakoutTime, false);
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+void CloseAllOrders()
+  {
+   for(int i = OrdersTotal() - 1; i >= 0; i--)
+     {
+      ordInfo.SelectByIndex(i);
+      if(ordInfo.Symbol() == _Symbol && ordInfo.Magic() == InpMagic)
+         trade.OrderDelete(ordInfo.Ticket());
+     }
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+void TrailStop()
+  {
+   double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+   double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+     {
+      if(posInfo.SelectByIndex(i) && posInfo.Symbol() == _Symbol && posInfo.Magic() == InpMagic)
+        {
+         ulong ticket = posInfo.Ticket();
+         if(posInfo.PositionType() == POSITION_TYPE_BUY)
+           {
+            if(bid - posInfo.PriceOpen() > TslTriggerPoints * _Point)
+              {
+               double sl = bid - TslPoints * _Point;
+               if(sl > posInfo.StopLoss())
+                 {
+                  trade.PositionModify(ticket, sl, posInfo.TakeProfit());
+                  Print("Trailing Buy: Ticket=", ticket, ", New SL=", sl);
+                 }
+              }
+           }
+         else
+            if(posInfo.PositionType() == POSITION_TYPE_SELL)
+              {
+               if(posInfo.PriceOpen() - ask > TslTriggerPoints * _Point)
+                 {
+                  double sl = ask + TslPoints * _Point;
+                  if(sl < posInfo.StopLoss() || posInfo.StopLoss() == 0)
+                    {
+                     trade.PositionModify(ticket, sl, posInfo.TakeProfit());
+                     Print("Trailing Sell: Ticket=", ticket, ", New SL=", sl);
+                    }
+                 }
+              }
+        }
+     }
+  }
+
+
+
+
+
+//+------------------------------------------------------------------+
+//| بررسی روزهای مجاز برای معامله                                  |
+//+------------------------------------------------------------------+
+bool IsTradingAllowedbyDay()
+  {
+   MqlDateTime today;
+   TimeCurrent(today);
+   string Daytoday = EnumToString((ENUM_DAY_OF_WEEK)today.day_of_week);
+   Print("Today is: ", Daytoday);
+
+   if(AllowedMonday && Daytoday == "MONDAY")
+      return true;
+   if(AllowedTuesday && Daytoday == "TUESDAY")
+      return true;
+   if(AllowedWednesday && Daytoday == "WEDNESDAY")
+      return true;
+   if(AllowedThursday && Daytoday == "THURSDAY")
+      return true;
+   if(AllowedFriday && Daytoday == "FRIDAY")
+      return true;
+   if(AllowedSeturday && Daytoday == "SATURDAY")
+      return true;
+   if(Allowedsunday && Daytoday == "SUNDAY")
+      return true;
+
+   if(TradingEnabledComm == "" || TradingEnabledComm != "printed")
+     {
+      TradingEnabledComm = "Trading is not allowed today (" + Daytoday + ")";
+      Print(TradingEnabledComm);
+     }
+   return false;
+  }
+
+
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+bool IsUpcomingNews()
+  {
+   if(!NewsFilterOn)
+      return false;
+   if(TrDisabledNews && TimeCurrent() - LastNewsAvoided < StartTradingMin * PeriodSeconds(PERIOD_M1))
+      return true;
+
+   TrDisabledNews = false;
+   string sep = (separator == comma) ? "," : ";";
+   sep_code = StringGetCharacter(sep, 0);
+   int k = StringSplit(KayNews, sep_code, Newstoavoid);
+
+   MqlCalendarValue values[];
+   datetime starttime = TimeCurrent();
+   datetime endtime   = starttime + PeriodSeconds(PERIOD_D1) * DaysNewsLookup;
+
+   CalendarValueHistory(values, starttime, endtime, NULL, NULL);
+
+   for(int i = 0; i < ArraySize(values); i++)
+     {
+      MqlCalendarEvent event;
+      CalendarEventById(values[i].event_id, event);
+      MqlCalendarCountry country;
+      CalendarCountryById(event.country_id, country);
+
+      if(StringFind(NewsCurrencies, country.currency) < 0)
+         continue;
+
+      for(int j = 0; j < k; j++)
+        {
+         if(StringFind(event.name, Newstoavoid[j]) < 0)
+            continue;
+         Comment("Next News: ", country.currency, ": ", event.name, " --> ", values[i].time);
+         if(values[i].time - TimeCurrent() < StopBeforeMin * PeriodSeconds(PERIOD_M1))
+           {
+            LastNewsAvoided = values[i].time;
+            TrDisabledNews = true;
+            if(TradingEnabledComm == "" || TradingEnabledComm != "printed")
+              {
+               TradingEnabledComm = "Trading is disabled due to upcoming news: " + event.name;
+              }
+            return true;
+           }
+        }
+     }
+   return false;
+  }
+
+
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+void DeletePreviousObject(string prefix)
+  {
+   for(int i = ObjectsTotal(0) - 1; i >= 0; i--)
+     {
+      string objName = ObjectName(0, i);
+      if(StringFind(objName, prefix) >= 0)
+         ObjectDelete(0, objName);
+     }
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+void DrawRangeZone(string type)
+  {
+   DeletePreviousObject("RangeZone_" + type);
+   DeletePreviousObject("RangeText_" + type);
+   string objName = "RangeZone_" + type + "_" + TimeToString(TimeCurrent(), TIME_MINUTES);
+   ObjectCreate(0, objName, OBJ_RECTANGLE, 0, iTime(_Symbol, Timeframe, BBMinRangeCandles), rangeHigh, iTime(_Symbol, Timeframe, 0), rangeLow);
+   ObjectSetInteger(0, objName, OBJPROP_COLOR, clrLightGray);
+   ObjectSetInteger(0, objName, OBJPROP_FILL, true);
+   ObjectSetInteger(0, objName, OBJPROP_STYLE, STYLE_SOLID);
+
+   string textName = "RangeText_" + type + "_" + TimeToString(TimeCurrent(), TIME_MINUTES);
+   ObjectCreate(0, textName, OBJ_TEXT, 0, iTime(_Symbol, Timeframe, 0), rangeHigh + 5 * _Point);
+   ObjectSetString(0, textName, OBJPROP_TEXT, "Range Zone (" + type + ")");
+   ObjectSetInteger(0, textName, OBJPROP_COLOR, clrWhite);
+   ObjectSetInteger(0, textName, OBJPROP_FONTSIZE, 8);
+   ObjectSetString(0, textName, OBJPROP_FONT, "Arial");
+   ObjectSetInteger(0, textName, OBJPROP_ANCHOR, ANCHOR_LEFT);
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+void DrawBreakout(string type)
+  {
+   DeletePreviousObject("Breakout_" + type);
+   DeletePreviousObject("BreakoutText_" + type);
+   DeletePreviousObject("WaitingPullback_" + type);
+   DeletePreviousObject("WaitingPullbackText_" + type);
+   string objName = "Breakout_" + type + "_" + TimeToString(TimeCurrent(), TIME_MINUTES);
+   bool isUp = (iClose(_Symbol, Timeframe, 1) > rangeHigh);
+   ObjectCreate(0, objName, isUp ? OBJ_ARROW_UP : OBJ_ARROW_DOWN, 0, iTime(_Symbol, Timeframe, 0), iClose(_Symbol, Timeframe, 1));
+   ObjectSetInteger(0, objName, OBJPROP_COLOR, isUp ? clrBlue : clrOrange);
+
+   string textName = "BreakoutText_" + type + "_" + TimeToString(TimeCurrent(), TIME_MINUTES);
+   ObjectCreate(0, textName, OBJ_TEXT, 0, iTime(_Symbol, Timeframe, 0) + PeriodSeconds(Timeframe), iClose(_Symbol, Timeframe, 1) + (isUp ? 5 : -5) * _Point);
+   ObjectSetString(0, textName, OBJPROP_TEXT, "Breakout " + (isUp ? "Up" : "Down") + " (" + type + ")");
+   ObjectSetInteger(0, textName, OBJPROP_COLOR, clrWhite);
+   ObjectSetInteger(0, textName, OBJPROP_FONTSIZE, 8);
+   ObjectSetString(0, textName, OBJPROP_FONT, "Arial");
+   ObjectSetInteger(0, textName, OBJPROP_ANCHOR, ANCHOR_LEFT);
+
+   string waitName = "WaitingPullback_" + type + "_" + TimeToString(TimeCurrent(), TIME_MINUTES);
+   ObjectCreate(0, waitName, OBJ_VLINE, 0, iTime(_Symbol, Timeframe, 0), 0);
+   ObjectSetInteger(0, waitName, OBJPROP_COLOR, clrYellow);
+
+   string waitTextName = "WaitingPullbackText_" + type + "_" + TimeToString(TimeCurrent(), TIME_MINUTES);
+   ObjectCreate(0, waitTextName, OBJ_TEXT, 0, iTime(_Symbol, Timeframe, 0), iClose(_Symbol, Timeframe, 1) - 5 * _Point);
+   ObjectSetString(0, waitTextName, OBJPROP_TEXT, "Waiting Pullback (" + type + ")");
+   ObjectSetInteger(0, waitTextName, OBJPROP_COLOR, clrWhite);
+   ObjectSetInteger(0, waitTextName, OBJPROP_FONTSIZE, 8);
+   ObjectSetString(0, waitTextName, OBJPROP_FONT, "Arial");
+   ObjectSetInteger(0, waitTextName, OBJPROP_ANCHOR, ANCHOR_RIGHT);
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+void DrawPullbackPattern(string type)
+  {
+   DeletePreviousObject("PinBar_" + type);
+   DeletePreviousObject("Engulfing_" + type);
+   DeletePreviousObject("Doji_" + type);
+   DeletePreviousObject("PatternText_" + type);
+   double close = iClose(_Symbol, Timeframe, 0);
+   double open = iOpen(_Symbol, Timeframe, 0);
+   double high = iHigh(_Symbol, Timeframe, 0);
+   double low = iLow(_Symbol, Timeframe, 0);
+   double body = MathAbs(close - open);
+   double range = high - low;
+
+   string objName = "";
+   string text = "";
+   if(isPinBar(high, low, open, close, (close > rangeHigh) ? 1 : -1))
+     {
+      objName = "PinBar_" + type + "_" + TimeToString(TimeCurrent(), TIME_MINUTES);
+      text = "Pin Bar " + ((close > rangeHigh) ? "Bullish" : "Bearish") + " (" + type + ")";
+     }
+   else
+      if(isEngulfing(close, open, iClose(_Symbol, Timeframe, 1), iOpen(_Symbol, Timeframe, 1)))
+        {
+         objName = "Engulfing_" + type + "_" + TimeToString(TimeCurrent(), TIME_MINUTES);
+         text = "Engulfing " + ((close > open) ? "Bullish" : "Bearish") + " (" + type + ")";
+        }
+      else
+         if(isDoji(body, range))
+           {
+            objName = "Doji_" + type + "_" + TimeToString(TimeCurrent(), TIME_MINUTES);
+            text = "Doji (" + type + ")";
+           }
+
+   if(objName != "")
+     {
+      color patternColor = (close > open) ? clrGreen : clrRed;
+      if(StringFind(objName, "PinBar") >= 0)
+        {
+         ObjectCreate(0, objName, OBJ_ARROW, 0, iTime(_Symbol, Timeframe, 0), low, 171);
+         ObjectSetInteger(0, objName, OBJPROP_COLOR, patternColor);
+        }
+      else
+        {
+         ObjectCreate(0, objName, OBJ_RECTANGLE, 0, iTime(_Symbol, Timeframe, 0), high, iTime(_Symbol, Timeframe, 0) + PeriodSeconds(Timeframe), low);
+         ObjectSetInteger(0, objName, OBJPROP_COLOR, patternColor);
+         ObjectSetInteger(0, objName, OBJPROP_FILL, false);
+        }
+
+      string textName = "PatternText_" + type + "_" + TimeToString(TimeCurrent(), TIME_MINUTES);
+      ObjectCreate(0, textName, OBJ_TEXT, 0, iTime(_Symbol, Timeframe, 0) + PeriodSeconds(Timeframe), high + 5 * _Point);
+      ObjectSetString(0, textName, OBJPROP_TEXT, text);
+      ObjectSetInteger(0, textName, OBJPROP_COLOR, clrWhite);
+      ObjectSetInteger(0, textName, OBJPROP_FONTSIZE, 8);
+      ObjectSetString(0, textName, OBJPROP_FONT, "Arial");
+      ObjectSetInteger(0, textName, OBJPROP_ANCHOR, ANCHOR_LEFT);
+     }
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+void DrawTrendLevel(string type, double level)
+  {
+   DeletePreviousObject(type + "Break_");
+   DeletePreviousObject(type + "BreakText_");
+   string objName = type + "Break_" + TimeToString(TimeCurrent(), TIME_MINUTES);
+   ObjectCreate(0, objName, OBJ_HLINE, 0, iTime(_Symbol, Timeframe, 0), level);
+   ObjectSetInteger(0, objName, OBJPROP_COLOR, (type == "High") ? clrGreen : clrRed);
+
+   string textName = type + "BreakText_" + TimeToString(TimeCurrent(), TIME_MINUTES);
+   ObjectCreate(0, textName, OBJ_TEXT, 0, iTime(_Symbol, Timeframe, 0), level + 5 * _Point);
+   ObjectSetString(0, textName, OBJPROP_TEXT, (type == "High") ? "High Break" : "Low Break");
+   ObjectSetInteger(0, textName, OBJPROP_COLOR, clrWhite);
+   ObjectSetInteger(0, textName, OBJPROP_FONTSIZE, 8);
+   ObjectSetString(0, textName, OBJPROP_FONT, "Arial");
+   ObjectSetInteger(0, textName, OBJPROP_ANCHOR, ANCHOR_LEFT);
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+void DrawOrderLine(string name, double level, color col)
+  {
+   DeletePreviousObject(name);
+   DeletePreviousObject(name + "Text_");
+   string objName = name + "_" + TimeToString(TimeCurrent(), TIME_MINUTES);
+   ObjectCreate(0, objName, OBJ_TREND, 0, iTime(_Symbol, Timeframe, 0), level, iTime(_Symbol, Timeframe, 0) + PeriodSeconds(Timeframe) * 2, level);
+   ObjectSetInteger(0, objName, OBJPROP_COLOR, col);
+   ObjectSetInteger(0, objName, OBJPROP_STYLE, STYLE_DOT);
+
+   string textName = name + "Text_" + TimeToString(TimeCurrent(), TIME_MINUTES);
+   ObjectCreate(0, textName, OBJ_TEXT, 0, iTime(_Symbol, Timeframe, 0) + PeriodSeconds(Timeframe), level + 5 * _Point);
+   ObjectSetString(0, textName, OBJPROP_TEXT, (col == clrGreen) ? "Buy Stop" : "Sell Stop");
+   ObjectSetInteger(0, textName, OBJPROP_COLOR, clrWhite);
+   ObjectSetInteger(0, textName, OBJPROP_FONTSIZE, 8);
+   ObjectSetString(0, textName, OBJPROP_FONT, "Arial");
+   ObjectSetInteger(0, textName, OBJPROP_ANCHOR, ANCHOR_LEFT);
+  }
+//+------------------------------------------------------------------+
+//| ChartEvent function                                              |
+//+------------------------------------------------------------------+
+void OnChartEvent(const int id, const long &lparam, const double &dparam, const string &sparam)
+  {
+   if(id == CHARTEVENT_OBJECT_CLICK && sparam == BUTTON_APPLY_ID)
+     {
+      double volume = StringToDouble(ObjectGetString(0, INPUT_VOLUME_ID, OBJPROP_TEXT));
+      Print("Volume updated to: ", volume);
+     }
+  }
+//+------------------------------------------------------------------+
